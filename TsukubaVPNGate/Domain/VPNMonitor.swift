@@ -156,7 +156,7 @@ final class VPNMonitor: VPNMonitorProtocol {
         
         // Publish to @MainActor store (runs on main thread automatically)
         // Using await ensures proper thread synchronization for SwiftUI observation
-        await MonitoringStore.shared.updateStatistics(stats)
+        MonitoringStore.shared.updateStatistics(stats)
     }
     
     // MARK: - Management Interface Queries

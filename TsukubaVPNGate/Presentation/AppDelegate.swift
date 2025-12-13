@@ -26,7 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupVPNBackend()
         
         // Pre-fetch server list for instant availability
-        Task { await ServerStore.shared.warmupCache() }
+        Task { ServerStore.shared.warmupCache() }
         
         // Listen for backend switch notifications from Settings
         NotificationCenter.default.addObserver(

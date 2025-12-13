@@ -7,10 +7,14 @@ struct SecurityTab: View {
     @AppStorage("vpn.password") private var vpnPassword: String = "vpn"
     @AppStorage("security.autoReconnect") private var autoReconnect: Bool = true
     @AppStorage("security.dnsLeakProtection") private var dnsLeakProtection: Bool = true
-    @AppStorage("security.killSwitch") private var killSwitch: Bool = false
+    @State private var killSwitchEnabled: Bool = UserDefaults.standard.bool(forKey: "enableKillSwitch")
     
-    @State private var showTouchIDSetup: Bool = false
     @State private var showPassword: Bool = false
+    @State private var showingPasswordSetup: Bool = false
+    @State private var setupPassword: String = ""
+    @State private var isPasswordStored: Bool = KeychainManager.shared.isPasswordStored()
+    @State private var showingTestResult: Bool = false
+    @State private var testResultMessage: String = ""
     
     var body: some View {
         ScrollView {
@@ -89,31 +93,63 @@ struct SecurityTab: View {
                     icon: "touchid",
                     iconColor: .green
                 ) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(spacing: 12) {
-                            Image(systemName: "touchid")
-                                .font(.title2)
-                                .foregroundColor(.green)
-                            
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Main toggle/status row
+                        HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("Touch ID for Admin Access")
-                                    .font(.system(size: 13, weight: .medium))
-                                Text("Use Touch ID instead of password when connecting to VPN")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                Text("Touch ID for VPN Connections")
+                                    .font(.subheadline)
+                                
+                                if isPasswordStored {
+                                    Text("Password stored securely in Keychain")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("Store admin password for Touch ID authentication")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                             
                             Spacer()
                             
-                            Button(action: { showTouchIDSetup = true }) {
-                                Text("Setup")
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.green)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
+                            // Status indicator
+                            if isPasswordStored {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                    Text("Enabled")
+                                        .font(.caption)
+                                        .foregroundColor(.green)
+                                }
+                            } else {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "xmark.circle")
+                                        .foregroundColor(.secondary)
+                                    Text("Disabled")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
-                            .buttonStyle(.plain)
+                        }
+                        
+                        // Action buttons row (right-aligned macOS style)
+                        HStack {
+                            Spacer()
+                            
+                            if !isPasswordStored {
+                                Button("Enable Touch ID...") {
+                                    showingPasswordSetup = true
+                                }
+                            } else {
+                                Button("Test Touch ID...") {
+                                    testTouchID()
+                                }
+                                
+                                Button("Remove...") {
+                                    removeStoredPassword()
+                                }
+                            }
                         }
                     }
                 }
@@ -174,12 +210,12 @@ struct SecurityTab: View {
                                 }
                             }
                             Spacer()
-                            Toggle("", isOn: $killSwitch)
+                            Toggle("", isOn: $killSwitchEnabled)
                                 .labelsHidden()
                                 .toggleStyle(SwitchToggleStyle())
                         }
                         
-                        if killSwitch {
+                        if killSwitchEnabled {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.orange)
@@ -321,11 +357,167 @@ struct SecurityTab: View {
             .padding()
             
         }
-        .sheet(isPresented: $showTouchIDSetup) {
-            TouchIDSetupView()
+        .sheet(isPresented: $showingPasswordSetup) {
+            PasswordSetupView(
+                password: $setupPassword,
+                onSave: {
+                    savePasswordToKeychain()
+                }
+            )
+        }
+        .alert(isPresented: $showingTestResult) {
+            Alert(
+                title: Text(testResultMessage.contains("✅") ? "Success" : "Failed"),
+                message: Text(testResultMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func savePasswordToKeychain() {
+        do {
+            try KeychainManager.shared.savePassword(setupPassword)
+            isPasswordStored = true
+            setupPassword = "" // Clear for security
+            print("✅ Password saved to Keychain")
+        } catch {
+            testResultMessage = "❌ Failed to save password: \(error.localizedDescription)"
+            showingTestResult = true
+        }
+    }
+    
+    private func testTouchID() {
+        do {
+            let _ = try KeychainManager.shared.getPassword()
+            testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
+            showingTestResult = true
+        } catch {
+            testResultMessage = "❌ Failed: \(error.localizedDescription)"
+            showingTestResult = true
+        }
+    }
+    
+    private func removeStoredPassword() {
+        do {
+            try KeychainManager.shared.deletePassword()
+            isPasswordStored = false
+            print("✅ Password removed from Keychain")
+        } catch {
+            testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
+            showingTestResult = true
         }
     }
     
     // Cache TTL in minutes
     @AppStorage("serverCacheTTL") private var cacheTTL: Int = 30
+}
+
+// MARK: - Password Setup View
+
+struct PasswordSetupView: View {
+    @Environment(\.presentationMode) var presentationMode
+    @Binding var password: String
+    let onSave: () -> Void
+    
+    @State private var showPassword: Bool = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                Text("Enable Touch ID for VPN")
+                    .font(.headline)
+                Spacer()
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+            
+            Divider()
+            
+            // Content
+            VStack(alignment: .leading, spacing: 20) {
+                // Info box
+                HStack(alignment: .top, spacing: 12) {
+                    Image(systemName: "info.circle.fill")
+                        .foregroundColor(.blue)
+                        .font(.title2)
+                    
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Your admin password will be securely stored")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Text("Future VPN connections will use Touch ID instead of requiring you to type your password.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .padding(12)
+                .background(Color.blue.opacity(0.1))
+                .cornerRadius(8)
+                
+                // Password field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Admin Password")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                    
+                    HStack {
+                        if showPassword {
+                            TextField("", text: $password)
+                                .textFieldStyle(.plain)
+                        } else {
+                            SecureField("", text: $password)
+                                .textFieldStyle(.plain)
+                        }
+                        
+                        Button(action: { showPassword.toggle() }) {
+                            Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color(NSColor.textBackgroundColor))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                    )
+                    .cornerRadius(6)
+                    
+                    Text("The password you use for 'sudo' commands")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding()
+            
+            Spacer()
+            
+            Divider()
+            
+            // Footer buttons
+            HStack(spacing: 12) {
+                Button("Cancel") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
+                
+                Spacer()
+                
+                Button("Enable Touch ID") {
+                    onSave()
+                    presentationMode.wrappedValue.dismiss()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(password.isEmpty)
+            }
+            .padding()
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+        .frame(width: 480, height: 320)
+    }
 }
