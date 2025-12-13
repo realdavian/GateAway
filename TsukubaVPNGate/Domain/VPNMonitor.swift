@@ -119,6 +119,9 @@ final class VPNMonitor: VPNMonitorProtocol {
                 connectedSince: stats.connectedSince,
                 vpnIP: stats.vpnIP,
                 publicIP: stats.publicIP,
+                connectedCountry: currentStats.connectedCountry,
+                connectedCountryShort: currentStats.connectedCountryShort,
+                connectedServerName: currentStats.connectedServerName,
                 bytesReceived: currentStats.bytesReceived,
                 bytesSent: currentStats.bytesSent,
                 currentDownloadSpeed: currentStats.currentDownloadSpeed,
@@ -196,6 +199,9 @@ final class VPNMonitor: VPNMonitorProtocol {
                 connectedSince: nil,
                 vpnIP: nil,
                 publicIP: nil,
+                connectedCountry: nil,
+                connectedCountryShort: nil,
+                connectedServerName: nil,
                 bytesReceived: currentStats.bytesReceived,
                 bytesSent: currentStats.bytesSent,
                 currentDownloadSpeed: currentStats.currentDownloadSpeed,
@@ -239,6 +245,9 @@ final class VPNMonitor: VPNMonitorProtocol {
             connectedSince: connectedSince,
             vpnIP: vpnIP,
             publicIP: publicIP,
+            connectedCountry: currentStats.connectedCountry,
+            connectedCountryShort: currentStats.connectedCountryShort,
+            connectedServerName: currentStats.connectedServerName,
             bytesReceived: currentStats.bytesReceived,
             bytesSent: currentStats.bytesSent,
             currentDownloadSpeed: currentStats.currentDownloadSpeed,
@@ -312,6 +321,9 @@ final class VPNMonitor: VPNMonitorProtocol {
             connectedSince: parsedState.connectedSince,
             vpnIP: parsedState.vpnIP,
             publicIP: parsedState.publicIP,
+            connectedCountry: parsedState.connectedCountry,
+            connectedCountryShort: parsedState.connectedCountryShort,
+            connectedServerName:parsedState.connectedServerName,
             bytesReceived: bytesReceived,
             bytesSent: bytesSent,
             currentDownloadSpeed: downloadSpeed,
@@ -323,4 +335,3 @@ final class VPNMonitor: VPNMonitorProtocol {
         )
     }
 }
-

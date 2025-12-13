@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - VPN Statistics Model
 
@@ -8,6 +9,9 @@ struct VPNStatistics {
     let connectedSince: Date?
     let vpnIP: String?
     let publicIP: String?
+    let connectedCountry: String?  // e.g., "Japan"
+    let connectedCountryShort: String?  // e.g., "JP"
+    let connectedServerName: String?  // e.g., "vpngate.example.jp"
     let bytesReceived: Int64
     let bytesSent: Int64
     let currentDownloadSpeed: Double // bytes per second
@@ -44,13 +48,13 @@ struct VPNStatistics {
             }
         }
         
-        var color: String {
+        var color: Color {
             switch self {
-            case .disconnected: return "gray"
-            case .connecting: return "orange"
-            case .connected: return "green"
-            case .reconnecting: return "blue"
-            case .error: return "red"
+            case .disconnected: return .gray
+            case .connecting: return .orange
+            case .connected: return .green
+            case .reconnecting: return .blue
+            case .error: return .red
             }
         }
     }
@@ -60,6 +64,9 @@ struct VPNStatistics {
         connectedSince: nil,
         vpnIP: nil,
         publicIP: nil,
+        connectedCountry: nil,
+        connectedCountryShort: nil,
+        connectedServerName: nil,
         bytesReceived: 0,
         bytesSent: 0,
         currentDownloadSpeed: 0,

@@ -77,15 +77,21 @@ struct OverviewTab: View {
                             HStack {
                                 Image(systemName: vpnStatistics.connectionState.icon)
                                     .font(.title2)
-                                    .foregroundColor(colorForState(vpnStatistics.connectionState))
+                                    .foregroundColor(vpnStatistics.connectionState.color)
                                 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(vpnStatistics.connectionState.displayName)
                                         .font(.headline)
                                     
-                                    if case .connected = vpnStatistics.connectionState,
-                                       let publicIP = vpnStatistics.publicIP {
-                                        Text("Public IP: \(publicIP)")
+                                    if case .connected = vpnStatistics.connectionState {
+                                        let countryShort = vpnStatistics.connectedCountryShort ?? ""
+                                            
+                                        if let country = vpnStatistics.connectedCountry {
+                                            Text("\(flagEmoji(for: countryShort)) \(country)")
+                                                .font(.subheadline)
+                                        }
+                                    } else if case .connecting = vpnStatistics.connectionState {
+                                        Text("Establishing tunnel...")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
@@ -97,7 +103,7 @@ struct OverviewTab: View {
                                     VStack(alignment: .trailing, spacing: 4) {
                                         Text(vpnStatistics.formattedDuration)
                                             .font(.system(.body, design: .monospaced))
-                                            .foregroundColor(.secondary)
+                                            .foregroundColor(.green)
                                         Text("Connected")
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
@@ -217,6 +223,17 @@ struct OverviewTab: View {
         case .reconnecting: return .blue
         case .error: return .red
         }
+    }
+
+    private func flagEmoji(for countryCode: String) -> String {
+        let base: UInt32 = 127397
+        var emoji = ""
+        for scalar in countryCode.uppercased().unicodeScalars {
+            if let scalarValue = UnicodeScalar(base + scalar.value) {
+                emoji.unicodeScalars.append(scalarValue)
+            }
+        }
+        return emoji.isEmpty ? "🌍" : emoji
     }
 }
 

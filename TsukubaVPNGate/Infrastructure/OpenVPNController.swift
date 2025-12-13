@@ -128,7 +128,7 @@ final class OpenVPNController: VPNControlling {
                 
                 // Process is now running! Start non-blocking polling
                 print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
-                self.startConnectionPolling(completion: completion)
+                self.startConnectionPolling(server: server, completion: completion)
             }
             
         } catch {
@@ -139,7 +139,7 @@ final class OpenVPNController: VPNControlling {
         }
     }
     
-    private func startConnectionPolling(completion: @escaping (Result<Void, Error>) -> Void) {
+    private func startConnectionPolling(server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
         let pollingQueue = DispatchQueue(label: "com.tsukubavpngate.connection-polling", qos: .userInitiated)
         let maxAttempts = 30
         
@@ -156,7 +156,14 @@ final class OpenVPNController: VPNControlling {
                 // 1. Check Success (file I/O and socket I/O on background thread)
                 if self.isActuallyConnected() {
                     print("✅ [OpenVPN] Connection established after \(attemptNumber) seconds")
+                    
+                    // Update MonitoringStore with connected server info
                     DispatchQueue.main.async {
+                        MonitoringStore.shared.setConnectedServer(
+                            country: server.countryLong,
+                            countryShort: server.countryShort,
+                            serverName: server.hostName
+                        )
                         completion(.success(()))
                     }
                     return

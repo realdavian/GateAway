@@ -28,61 +28,60 @@ struct MonitoringTab: View {
                         .foregroundColor(.primary)
 
                     VStack(spacing: 16) {
-                        HStack(spacing: 16) {
+                        // Single row with status, country, IPs
+                        HStack(spacing: 12) {
+                            // Status indicator
                             ZStack {
                                 Circle()
                                     .fill(colorForState(vpnStatistics.connectionState).opacity(0.2))
-                                    .frame(width: 60, height: 60)
-
+                                    .frame(width: 40, height: 40)
+                                
                                 Image(systemName: vpnStatistics.connectionState.icon)
-                                    .font(.title)
                                     .foregroundColor(colorForState(vpnStatistics.connectionState))
                             }
-
-                            VStack(alignment: .leading, spacing: 6) {
+                            
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(vpnStatistics.connectionState.displayName)
-                                    .font(.title3)
-                                    .fontWeight(.semibold)
-
-                                if case .connected = vpnStatistics.connectionState {
-                                    Text("Duration: \(vpnStatistics.formattedDuration)")
+                                    .font(.headline)
+                                
+                                let countryShort = vpnStatistics.connectedCountryShort ?? ""
+                                if let country = vpnStatistics.connectedCountry {
+                                    Text("\(flagEmoji(for: countryShort)) \(country)")
                                         .font(.subheadline)
-                                        .foregroundColor(.secondary)
                                 }
                             }
-
+                            
                             Spacer()
+                            
+                            // VPN IP and Public IP
+                            if case .connected = vpnStatistics.connectionState {
+                                VStack(alignment: .trailing, spacing: 4) {
+                                    if let vpnIP = vpnStatistics.vpnIP {
+                                        HStack(spacing: 4) {
+                                            Text("VPN:")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            Text(vpnIP)
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                        }
+                                    }
+                                    if let publicIP = vpnStatistics.publicIP {
+                                        HStack(spacing: 4) {
+                                            Text("Public:")
+                                                .font(.caption2)
+                                                .foregroundColor(.secondary)
+                                            Text(publicIP)
+                                                .font(.caption)
+                                                .fontWeight(.medium)
+                                        }
+                                    }
+                                }
+                            }
                         }
                         .padding()
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
-
-                        if case .connected = vpnStatistics.connectionState {
-                            HStack(spacing: 16) {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("VPN IP")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text(vpnStatistics.vpnIP ?? "N/A")
-                                        .font(.system(.body, design: .monospaced))
-                                        .fontWeight(.medium)
-                                }
-
-                                Divider().frame(height: 40)
-
-                                VStack(alignment: .leading, spacing: 8) {
-                                    Text("Public IP")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    Text(vpnStatistics.publicIP ?? "N/A")
-                                        .font(.system(.body, design: .monospaced))
-                                        .fontWeight(.medium)
-                                }
-                            }
-                            .padding()
-                            .background(Color.blue.opacity(0.05))
-                            .cornerRadius(12)
-                        }
                     }
                 }
                 .padding()
@@ -203,6 +202,17 @@ struct MonitoringTab: View {
         case .reconnecting: return .blue
         case .error: return .red
         }
+    }
+
+    private func flagEmoji(for countryCode: String) -> String {
+        let base: UInt32 = 127397
+        var emoji = ""
+        for scalar in countryCode.uppercased().unicodeScalars {
+            if let scalarValue = UnicodeScalar(base + scalar.value) {
+                emoji.unicodeScalars.append(scalarValue)
+            }
+        }
+        return emoji.isEmpty ? "🌍" : emoji
     }
 }
 

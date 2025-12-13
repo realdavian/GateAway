@@ -29,4 +29,27 @@ final class MonitoringStore: ObservableObject {
         self.vpnStatistics = stats
         print("✅ [MonitoringStore] Published new stats")
     }
+    
+    /// Called by OpenVPNController when connecting to a server
+    func setConnectedServer(country: String?, countryShort: String?, serverName: String?) {
+        print("🌍 [MonitoringStore] Connected server: \(country ?? "Unknown") - \(serverName ?? "Unknown")")
+        // Update current stats with server info
+        self.vpnStatistics = VPNStatistics(
+            connectionState: vpnStatistics.connectionState,
+            connectedSince: vpnStatistics.connectedSince,
+            vpnIP: vpnStatistics.vpnIP,
+            publicIP: vpnStatistics.publicIP,
+            connectedCountry: country,
+            connectedCountryShort: countryShort,
+            connectedServerName: serverName,
+            bytesReceived: vpnStatistics.bytesReceived,
+            bytesSent: vpnStatistics.bytesSent,
+            currentDownloadSpeed: vpnStatistics.currentDownloadSpeed,
+            currentUploadSpeed: vpnStatistics.currentUploadSpeed,
+            ping: vpnStatistics.ping,
+            protocolType: vpnStatistics.protocolType,
+            port: vpnStatistics.port,
+            cipher: vpnStatistics.cipher
+        )
+    }
 }
