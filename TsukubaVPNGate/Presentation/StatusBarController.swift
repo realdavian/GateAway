@@ -1,0 +1,299 @@
+import AppKit
+
+// MARK: - Status Bar Controller (Presentation Layer - SRP: Menu bar UI only)
+
+final class StatusBarController: NSObject {
+    private var coordinator: AppCoordinatorProtocol
+    private let statusItem: NSStatusItem
+    private let settingsWindow = SettingsWindowController()
+    
+    var hasVisibleStatusItem: Bool {
+        guard let button = statusItem.button else { return false }
+        return !button.title.isEmpty || button.image != nil
+    }
+    
+    init(coordinator: AppCoordinatorProtocol) {
+        self.coordinator = coordinator
+        self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        super.init()
+        
+        // Give it a unique autosave name so macOS remembers its position and visibility
+        statusItem.autosaveName = "TsukubaVPNGateStatusItem"
+        statusItem.isVisible = true
+        
+        configureStatusButton()
+        rebuildMenu()
+    }
+    
+    // MARK: - Dynamic Updates
+    
+    func updateCoordinator(_ newCoordinator: AppCoordinatorProtocol) {
+        print("🔄 [StatusBarController] Updating coordinator (backend switched)")
+        self.coordinator = newCoordinator
+        rebuildMenu()
+    }
+    
+    private func configureStatusButton() {
+        updateStatusIcon()
+    }
+    
+    private func updateStatusIcon() {
+        guard let button = statusItem.button else { return }
+        
+        let state = coordinator.getCurrentConnectionState()
+        
+        // Choose icon based on connection state
+        let (iconName, isTemplate) = iconForState(state)
+        
+        // Create and configure image
+        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "TsukubaVPNGate") {
+            // Template images automatically adapt to light/dark mode and menu bar styling
+            image.isTemplate = isTemplate
+            
+            // Configure symbol for menu bar (compact size)
+            let config = NSImage.SymbolConfiguration(pointSize: 14, weight: .medium)
+            let configuredImage = image.withSymbolConfiguration(config)
+            
+            button.image = configuredImage
+            button.title = "" // Icon only - cleaner look
+            button.imagePosition = .imageOnly
+        } else {
+            // Fallback for older macOS versions
+            button.title = "VPN"
+            button.image = nil
+        }
+    }
+    
+    private func iconForState(_ state: VPNConnectionState) -> (symbolName: String, isTemplate: Bool) {
+        switch state {
+        case .disconnected:
+            // Disconnected: Open lock (template adapts to menu bar color)
+            return ("lock.open.fill", true)
+            
+        case .connecting:
+            // Connecting: Arrows in circle (animated feel)
+            return ("arrow.triangle.2.circlepath", true)
+            
+        case .connected:
+            // Connected: Filled shield (strong security indicator)
+            return ("shield.lefthalf.filled", true)
+            
+        case .disconnecting:
+            // Disconnecting: Loading indicator
+            return ("arrow.triangle.2.circlepath", true)
+            
+        case .error:
+            // Error: Exclamation shield
+            return ("exclamationmark.shield.fill", false) // Not template, so it can show in color
+        }
+    }
+    
+    func rebuildMenu() {
+        // Update icon to reflect current state
+        updateStatusIcon()
+        
+        let menu = NSMenu()
+        
+        // Status header (Wi‑Fi menu style)
+        let summary = coordinator.getStatusSummary()
+        let statusItem = NSMenuItem(title: summary.title, action: nil, keyEquivalent: "")
+        statusItem.isEnabled = false
+        menu.addItem(statusItem)
+        
+        if let subtitle = summary.subtitle {
+            let sub = NSMenuItem(title: subtitle, action: nil, keyEquivalent: "")
+            sub.isEnabled = false
+            menu.addItem(sub)
+        }
+        
+        menu.addItem(.separator())
+        
+        // Primary actions
+        let refreshItem = NSMenuItem(title: "Refresh Server List", action: #selector(onRefresh), keyEquivalent: "r")
+        refreshItem.target = self
+        menu.addItem(refreshItem)
+        
+        let connectBestItem = NSMenuItem(title: "Connect (Best)", action: #selector(onConnectBest), keyEquivalent: "")
+        connectBestItem.target = self
+        menu.addItem(connectBestItem)
+        
+        let disconnectItem = NSMenuItem(title: "Disconnect", action: #selector(onDisconnect), keyEquivalent: "")
+        disconnectItem.target = self
+        menu.addItem(disconnectItem)
+        
+        menu.addItem(.separator())
+        
+        // Country submenu
+        buildCountrySubmenu(menu: menu)
+        
+        menu.addItem(.separator())
+        
+        let settingsItem = NSMenuItem(title: "Settings…", action: #selector(onSettings), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        
+        let quitItem = NSMenuItem(title: "Quit", action: #selector(onQuit), keyEquivalent: "q")
+        quitItem.target = self
+        menu.addItem(quitItem)
+        
+        self.statusItem.menu = menu
+    }
+    
+    private func buildCountrySubmenu(menu: NSMenu) {
+        let byCountry = NSMenuItem(title: "Best by Country", action: nil, keyEquivalent: "")
+        let byCountryMenu = NSMenu()
+        
+        let countries = coordinator.getAvailableCountries()
+        print("📍 StatusBarController: Building country submenu, found \(countries.count) countries: \(countries)")
+        
+        for country in countries {
+            let countryItem = NSMenuItem(title: country, action: nil, keyEquivalent: "")
+            let serversMenu = NSMenu()
+            
+            let topServers = coordinator.getTopServers(forCountry: country)
+            if topServers.isEmpty {
+                let empty = NSMenuItem(title: "No servers", action: nil, keyEquivalent: "")
+                empty.isEnabled = false
+                serversMenu.addItem(empty)
+            } else {
+                for server in topServers {
+                    let title = formatServerMenuItem(server)
+                    let item = NSMenuItem(title: title, action: #selector(onConnectSpecific(_:)), keyEquivalent: "")
+                    item.target = self
+                    item.representedObject = server.id
+                    
+                    // Mark connected server
+                    if case .connected(let connectedServer) = coordinator.getCurrentConnectionState(),
+                       connectedServer.id == server.id {
+                        item.state = .on
+                    }
+                    
+                    serversMenu.addItem(item)
+                }
+            }
+            
+            countryItem.submenu = serversMenu
+            byCountryMenu.addItem(countryItem)
+        }
+        
+        byCountry.submenu = byCountryMenu
+        menu.addItem(byCountry)
+    }
+    
+    private func formatServerMenuItem(_ server: VPNServer) -> String {
+        let pingPart = server.pingMS.map { "\($0) ms" } ?? "—"
+        let speedPart = server.speedMbps.map { "\($0) Mbps" } ?? "—"
+        return "\(server.hostName) • \(pingPart) • \(speedPart)"
+    }
+    
+    // MARK: - Actions
+    
+    @objc private func onRefresh() {
+        // Show loading state
+        updateStatusIcon()
+        
+        coordinator.refreshServerList { [weak self] result in
+            switch result {
+            case .success:
+                self?.rebuildMenu()
+            case .failure(let error):
+                self?.showError(title: "Refresh Failed", message: error.localizedDescription)
+                self?.rebuildMenu()
+            }
+        }
+    }
+    
+    @objc private func onConnectBest() {
+        // Show connecting state immediately
+        updateStatusIcon()
+        
+        coordinator.connectToBestServer { [weak self] result in
+            switch result {
+            case .success:
+                self?.rebuildMenu()
+            case .failure(let error):
+                self?.showError(title: "Connection Failed", message: error.localizedDescription)
+                self?.rebuildMenu()
+            }
+        }
+    }
+    
+    @objc private func onConnectSpecific(_ sender: NSMenuItem) {
+        guard let id = sender.representedObject as? String,
+              let server = coordinator.getServerByID(id) else { return }
+        
+        // Show connecting state immediately
+        updateStatusIcon()
+        
+        coordinator.connectToServer(server) { [weak self] result in
+            switch result {
+            case .success:
+                self?.rebuildMenu()
+            case .failure(let error):
+                self?.showError(title: "Connection Failed", message: error.localizedDescription)
+                self?.rebuildMenu()
+            }
+        }
+    }
+    
+    @objc private func onDisconnect() {
+        // Show disconnecting state immediately
+        updateStatusIcon()
+        
+        coordinator.disconnect { [weak self] result in
+            switch result {
+            case .success:
+                self?.rebuildMenu()
+            case .failure(let error):
+                self?.showError(title: "Disconnection Failed", message: error.localizedDescription)
+                self?.rebuildMenu()
+            }
+        }
+    }
+    
+    @objc private func onSettings() {
+        settingsWindow.show()
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    
+    @objc private func onQuit() {
+        NSApp.terminate(nil)
+    }
+    
+    // MARK: - Error Handling (Presentation layer responsibility)
+    
+    private func showError(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.alertStyle = .warning
+        
+        // Check if it's an automation permission error
+        if message.contains("Automation permission") || message.contains("not authorized") || message.contains("Permission Required") {
+            alert.informativeText = """
+            \(message)
+            
+            Steps to fix:
+            1. Click "Open System Settings" below
+            2. Find "TsukubaVPNGate" in the Automation list
+            3. Check the box next to "Tunnelblick"
+            4. Try connecting again
+            
+            Note: If TsukubaVPNGate doesn't appear yet, close System Settings and try connecting once more to trigger the permission dialog.
+            """
+            
+            alert.addButton(withTitle: "Open System Settings")
+            alert.addButton(withTitle: "Cancel")
+            
+            if alert.runModal() == .alertFirstButtonReturn {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+        } else {
+            alert.informativeText = message
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+    }
+}
+
