@@ -8,7 +8,7 @@ protocol VPNGateAPIProtocol {
 
 // MARK: - Domain Model
 
-struct VPNServer: Identifiable, Hashable {
+struct VPNServer: Identifiable, Hashable, Codable {
     let id: String
     let hostName: String
     let ip: String

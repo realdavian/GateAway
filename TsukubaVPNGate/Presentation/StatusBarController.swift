@@ -6,7 +6,7 @@ import Combine
 final class StatusBarController: NSObject {
     private var coordinator: AppCoordinatorProtocol
     private let statusItem: NSStatusItem
-    private let settingsWindow = SettingsWindowController()
+    private var settingsWindow: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
     
     var hasVisibleStatusItem: Bool {
@@ -266,7 +266,10 @@ final class StatusBarController: NSObject {
     }
     
     @objc private func onSettings() {
-        settingsWindow.show()
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController(coordinator: coordinator)
+        }
+        settingsWindow?.show()
         NSApp.activate(ignoringOtherApps: true)
     }
     

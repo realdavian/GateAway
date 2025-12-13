@@ -3,6 +3,9 @@ import SwiftUI
 // MARK: - Monitoring Tab (Real-time VPN Statistics)
 
 struct MonitoringTab: View {
+    @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
+    
+    @State private var isDisconnecting: Bool = false
     @ObservedObject private var store = MonitoringStore.shared
 
     private var vpnStatistics: VPNStatistics {
@@ -82,6 +85,23 @@ struct MonitoringTab: View {
                         .padding()
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
+                        
+                        // Disconnect button (only when connected)
+                        if case .connected = vpnStatistics.connectionState {
+                            Button(action: handleDisconnect) {
+                                HStack {
+                                    Image(systemName: "xmark.circle.fill")
+                                    Text(isDisconnecting ? "Disconnecting..." : "Disconnect")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isDisconnecting)
+                        }
                     }
                 }
                 .padding()
@@ -186,11 +206,26 @@ struct MonitoringTab: View {
             }
             .padding()
         }
-        .onAppear {
-            VPNMonitor.shared.startMonitoring()
-        }
-        .onDisappear {
-            VPNMonitor.shared.stopMonitoring()
+    }
+    
+    private func handleDisconnect() {
+        isDisconnecting = true
+        
+        // Use existing coordinator logic (DRY principle!)
+        coordinatorWrapper.disconnect { result in
+            DispatchQueue.main.async {
+                isDisconnecting = false
+                
+                switch result {
+                case .success:
+                    print("✅ Disconnected successfully")
+                    // UI updates automatically via MonitoringStore
+                    
+                case .failure(let error):
+                    print("❌ Disconnect failed: \(error.localizedDescription)")
+                    // Could show alert here if needed
+                }
+            }
         }
     }
 

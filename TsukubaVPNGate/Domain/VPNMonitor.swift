@@ -76,22 +76,20 @@ final class VPNMonitor: VPNMonitorProtocol {
         let currentStats = MonitoringStore.shared.vpnStatistics
         print("📊 [VPNMonitor] Current stats: \(currentStats.connectionState)")
         
-        // Dispatch I/O work to background queue
-        monitorQueue.async { [weak self] in
-            print("📊 [VPNMonitor] Processing stats on background queue")
-            self?.processStatsOnBackground(currentStats: currentStats)
+        // Dispatch I/O work to background queue using Task
+        Task.detached(priority: .userInitiated) { [weak self] in
+            guard let self = self else { return }
+            await self.processStatsOnBackground(currentStats: currentStats)
         }
     }
     
-    private func processStatsOnBackground(currentStats: VPNStatistics) {
+    private func processStatsOnBackground(currentStats: VPNStatistics) async {
         // RUNNING ON BACKGROUND QUEUE - monitorQueue
         
         // Check if management socket exists (file I/O on background thread)
         guard fileManager.fileExists(atPath: managementSocketPath) else {
-            // Socket gone means VPN disconnected, send empty stats loudly
-            DispatchQueue.main.async {
-                MonitoringStore.shared.updateStatistics(.empty)
-            }
+            // Socket gone means VPN disconnected, send empty stats
+            MonitoringStore.shared.updateStatistics(.empty)
             return
         }
         
@@ -121,7 +119,7 @@ final class VPNMonitor: VPNMonitorProtocol {
                 publicIP: stats.publicIP,
                 connectedCountry: currentStats.connectedCountry,
                 connectedCountryShort: currentStats.connectedCountryShort,
-                connectedServerName: currentStats.connectedServerName,
+                connectedServerName: currentStats.connectedServerName,  // ← Preserve server name!
                 bytesReceived: currentStats.bytesReceived,
                 bytesSent: currentStats.bytesSent,
                 currentDownloadSpeed: currentStats.currentDownloadSpeed,
@@ -133,10 +131,32 @@ final class VPNMonitor: VPNMonitorProtocol {
             )
         }
         
-        // Always publish on main thread (MonitoringStore is @MainActor)
-        DispatchQueue.main.async {
-            MonitoringStore.shared.updateStatistics(stats)
+        // IMPORTANT: Ensure we preserve server info from previous stats
+        // OpenVPN doesn't provide hostname, so we must keep it from when we connected
+        if stats.connectedServerName == nil && currentStats.connectedServerName != nil {
+            stats = VPNStatistics(
+                connectionState: stats.connectionState,
+                connectedSince: stats.connectedSince,
+                vpnIP: stats.vpnIP,
+                publicIP: stats.publicIP,
+                connectedCountry: currentStats.connectedCountry,
+                connectedCountryShort: currentStats.connectedCountryShort,
+                connectedServerName: currentStats.connectedServerName,  // ← Preserve from previous!
+                bytesReceived: stats.bytesReceived,
+                bytesSent: stats.bytesSent,
+                currentDownloadSpeed: stats.currentDownloadSpeed,
+                currentUploadSpeed: stats.currentUploadSpeed,
+                ping: stats.ping,
+                protocolType: stats.protocolType,
+                port: stats.port,
+                cipher: stats.cipher
+            )
+            print("📌 [VPNMonitor] Preserved connectedServerName: \(currentStats.connectedServerName ?? "nil")")
         }
+        
+        // Publish to @MainActor store (runs on main thread automatically)
+        // Using await ensures proper thread synchronization for SwiftUI observation
+        await MonitoringStore.shared.updateStatistics(stats)
     }
     
     // MARK: - Management Interface Queries

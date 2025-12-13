@@ -231,13 +231,11 @@ struct BlacklistRow: View {
 
 struct AddToBlacklistView: View {
     @Environment(\.presentationMode) var presentationMode
+    @ObservedObject private var serverStore = ServerStore.shared
     
     @State private var selectedServerId: String = ""
     @State private var reason: String = ""
     @State private var selectedExpiry: BlacklistExpiry = .duration(86400)
-    
-    @State private var servers: [VPNServer] = []
-    @State private var isLoadingServers: Bool = false
     
     let onAdd: (VPNServer, String, BlacklistExpiry) -> Void
     
@@ -264,7 +262,7 @@ struct AddToBlacklistView: View {
                         Text("Select Server")
                             .font(.headline)
                         
-                        if isLoadingServers {
+                        if serverStore.isLoading {
                             HStack {
                                 ProgressView()
                                     .scaleEffect(0.7)
@@ -272,14 +270,14 @@ struct AddToBlacklistView: View {
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                        } else if servers.isEmpty {
+                        } else if serverStore.servers.isEmpty {
                             Text("No servers available. Refresh the server list from the Servers tab.")
                                 .font(.caption)
                                 .foregroundColor(.orange)
                         } else {
                             Picker("Server", selection: $selectedServerId) {
                                 Text("Select a server...").tag("")
-                                ForEach(servers) { server in
+                                ForEach(serverStore.servers.sorted { $0.countryLong < $1.countryLong }) { server in
                                     Text("\(server.countryLong) - \(server.ip)")
                                         .tag(server.ip)
                                 }
@@ -348,7 +346,7 @@ struct AddToBlacklistView: View {
                 Spacer()
                 
                 Button("Add to Blacklist") {
-                    if let server = servers.first(where: { $0.ip == selectedServerId }) {
+                    if let server = serverStore.servers.first(where: { $0.ip == selectedServerId }) {
                         onAdd(server, reason, selectedExpiry)
                         presentationMode.wrappedValue.dismiss()
                     }
@@ -365,21 +363,7 @@ struct AddToBlacklistView: View {
         }
         .frame(width: 500, height: 600)
         .onAppear {
-            loadServers()
-        }
-    }
-    
-    private func loadServers() {
-        isLoadingServers = true
-        
-        VPNGateAPI().fetchServers { result in
-            DispatchQueue.main.async {
-                isLoadingServers = false
-                
-                if case .success(let fetchedServers) = result {
-                    servers = fetchedServers.sorted { $0.countryLong < $1.countryLong }
-                }
-            }
+            serverStore.loadServers()
         }
     }
     

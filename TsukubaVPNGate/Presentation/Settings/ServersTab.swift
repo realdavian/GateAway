@@ -3,15 +3,35 @@ import SwiftUI
 // MARK: - Servers Tab (Browse All Servers)
 
 struct ServersTab: View {
-    @State private var servers: [VPNServer] = []
+    @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
+    @ObservedObject private var store = MonitoringStore.shared
+    @ObservedObject private var serverStore = ServerStore.shared
+    
     @State private var filteredServers: [VPNServer] = []
     @State private var searchText: String = ""
     @State private var sortBy: SortOption = .score
-    @State private var isLoading: Bool = false
-    @State private var selectedServer: VPNServer?
-    @State private var showingConnectAlert: Bool = false
+    @State private var activeAlert: AlertType?
     
     private let blacklistManager = BlacklistManager()
+    
+    // Computed property to get connected server info
+    private var connectedServerIP: String? {
+        guard case .connected = store.vpnStatistics.connectionState else {
+            return nil
+        }
+        return store.vpnStatistics.vpnIP
+    }
+    
+    private var connectedServerName: String? {
+        store.vpnStatistics.connectedServerName
+    }
+    
+    private var isConnected: Bool {
+        if case .connected = store.vpnStatistics.connectionState {
+            return true
+        }
+        return false
+    }
     
     enum SortOption: String, CaseIterable {
         case country = "Country"
@@ -54,25 +74,46 @@ struct ServersTab: View {
                 .pickerStyle(.menu)
                 .frame(width: 140)
                 
-                // Refresh button
-                Button(action: refreshServers) {
+                // Refresh button (always forces refresh)
+                Button(action: { serverStore.loadServers(forceRefresh: true) }) {
                     Image(systemName: "arrow.clockwise")
                         .font(.body)
                 }
                 .buttonStyle(.plain)
-                .disabled(isLoading)
+                .disabled(serverStore.isLoading)
+                .help("Refresh server list from API")
+                
+                // Cache indicator
+                if let cacheAge = ServerCacheManager.shared.getCacheAge() {
+                    let ageMinutes = Int(cacheAge / 60)
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text("\(ageMinutes)m ago")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
                 // Server count
                 Text("\(filteredServers.count) servers")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                
+                // Loading indicator
+                if serverStore.isLoading {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .frame(width: 20, height: 20)
+                }
             }
             .padding()
             
             Divider()
             
             // Table header
-            if !isLoading && !filteredServers.isEmpty {
+            if !serverStore.isLoading && !filteredServers.isEmpty {
                 HStack(spacing: 12) {
                     Text("")
                         .frame(width: 40)
@@ -112,93 +153,169 @@ struct ServersTab: View {
             }
             
             // Servers table
-            if isLoading {
-                Spacer()
-                ProgressView("Loading servers...")
-                Spacer()
-            } else if filteredServers.isEmpty {
-                Spacer()
-                VStack(spacing: 12) {
-                    Image(systemName: "server.rack")
-                        .font(.system(size: 48))
-                        .foregroundColor(.secondary)
-                    Text("No servers found")
-                        .font(.headline)
-                    Text(searchText.isEmpty ? "Refresh to load servers" : "Try a different search term")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Spacer()
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 1) {
-                        ForEach(filteredServers) { server in
-                            ServerRow(
-                                server: server,
-                                isBlacklisted: blacklistManager.isBlacklisted(server),
-                                onConnect: {
-                                    selectedServer = server
-                                    showingConnectAlert = true
-                                },
-                                onBlacklist: {
-                                    // TODO: Show blacklist dialog
-                                }
-                            )
-                            
-                            Divider()
+            // Main Content
+            ZStack {
+                if serverStore.isLoading && filteredServers.isEmpty {
+                    VStack {
+                        ProgressView()
+                        Text("Loading servers...")
+                            .foregroundColor(.secondary)
+                            .padding(.top, 8)
+                    }
+                } else if filteredServers.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "server.rack")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text("No servers available")
+                            .font(.title3)
+                            .foregroundColor(.secondary)
+                        if let error = serverStore.lastError {
+                            Text(error.localizedDescription)
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
+                        Button("Retry") {
+                            serverStore.loadServers(forceRefresh: true)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.accentColor)
+                        .foregroundColor(.white)
+                        .cornerRadius(8)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 1) {
+                            ForEach(filteredServers) { server in
+                                // Check if this server is the connected one
+                                // Compare hostnames since that's what's stored in MonitoringStore
+                                let isServerConnected: Bool = {
+                                    let connectionState = store.vpnStatistics.connectionState
+                                    let connectedName = store.vpnStatistics.connectedServerName
+                                    
+                                    guard case .connected = connectionState,
+                                          let connectedServerName = connectedName else {
+                                        return false
+                                    }
+                                    
+                                    let matches = server.hostName == connectedServerName
+                                    
+                                    return matches
+                                }()
+                                
+                                ServerRow(
+                                    server: server,
+                                    isBlacklisted: blacklistManager.isBlacklisted(server),
+                                    isConnected: isServerConnected,
+                                    onConnect: {
+                                        // Check if already connected to a different server
+                                        if self.isConnected && !isServerConnected {
+                                            activeAlert = .reconnect(server)
+                                        } else {
+                                            activeAlert = .connect(server)
+                                        }
+                                    },
+                                    onBlacklist: {
+                                        let isBlacklisted = blacklistManager.isBlacklisted(server)
+                                        activeAlert = isBlacklisted ? .blacklistRemove(server) : .blacklistAdd(server)
+                                    }
+                                )
+                                
+                                Divider()
+                            }
                         }
                     }
                 }
             }
-        }
-        .onAppear {
-            if servers.isEmpty {
-                refreshServers()
+            .onAppear {
+                serverStore.loadServers()
+                filterAndSortServers()
             }
-        }
-        .onChange(of: searchText) { _ in
-            filterAndSortServers()
-        }
-        .onChange(of: sortBy) { _ in
-            filterAndSortServers()
-        }
-        .alert(isPresented: $showingConnectAlert) {
-            Alert(
-                title: Text("Connect to Server?"),
-                message: selectedServer.map { Text("Connect to \($0.countryLong) (\($0.ip))?") },
-                primaryButton: .default(Text("Connect"), action: {
-                    if let server = selectedServer {
-                        connectToServer(server)
-                    }
-                }),
-                secondaryButton: .cancel()
-            )
-        }
-    }
-    
-    private func refreshServers() {
-        isLoading = true
-        
-        // Fetch from API
-        VPNGateAPI().fetchServers { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                
-                switch result {
-                case .success(let fetchedServers):
-                    servers = fetchedServers
-                    filterAndSortServers()
-                    print("✅ Loaded \(fetchedServers.count) servers")
+            .onChange(of: searchText) { _ in
+                filterAndSortServers()
+            }
+            .onChange(of: sortBy) { _ in
+                filterAndSortServers()
+            }
+            .onChange(of: serverStore.servers) { _ in
+                filterAndSortServers()
+            }
+            .onChange(of: store.vpnStatistics.connectedServerName) { newName in
+                print("🔄 [ServersTab] Connected server name changed to: \(newName ?? "nil")")
+                // Force view refresh by triggering any state change
+                // This ensures the ForEach re-evaluates isServerConnected
+            }
+            .alert(item: $activeAlert) { alertType in
+                switch alertType {
+                case .connect(let server):
+                    return Alert(
+                        title: Text("Connect to Server?"),
+                        message: Text("Connect to \(server.countryLong) (\(server.ip))?"),
+                        primaryButton: .default(Text("Connect"), action: {
+                            print("🎯 [ServersTab] Connect button tapped in alert")
+                            connectToServer(server)
+                        }),
+                        secondaryButton: .cancel()
+                    )
                     
-                case .failure(let error):
-                    print("❌ Failed to load servers: \(error)")
+                case .reconnect(let server):
+                    return Alert(
+                        title: Text("Switch Server?"),
+                        message: Text("You are currently connected to \(connectedServerName ?? "a server"). Disconnect and connect to \(server.countryLong) (\(server.ip))?"),
+                        primaryButton: .default(Text("Switch"), action: {
+                            print("🎯 [ServersTab] Reconnect confirmed")
+                            // Disconnect first, then connect
+                            coordinatorWrapper.disconnect { _ in
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    connectToServer(server)
+                                }
+                            }
+                        }),
+                        secondaryButton: .cancel()
+                    )
+                    
+                case .error(let message):
+                    return Alert(
+                        title: Text("Connection Failed"),
+                        message: Text(message),
+                        dismissButton: .default(Text("OK"))
+                    )
+                    
+                case .blacklistAdd(let server):
+                    return Alert(
+                        title: Text("Add to Blacklist?"),
+                        message: Text("Blacklist \(server.countryLong) (\(server.ip))? It will be hidden from server selection."),
+                        primaryButton: .destructive(Text("Blacklist"), action: {
+                            blacklistManager.addToBlacklist(server, reason: "Manually blacklisted from Servers tab", expiry: .never)
+                            print("✅ Added \(server.countryLong) to blacklist")
+                        }),
+                        secondaryButton: .cancel()
+                    )
+                    
+                case .blacklistRemove(let server):
+                    return Alert(
+                        title: Text("Remove from Blacklist?"),
+                        message: Text("Remove \(server.countryLong) (\(server.ip)) from blacklist?"),
+                        primaryButton: .destructive(Text("Remove"), action: {
+                            blacklistManager.removeFromBlacklist(serverId: server.ip)
+                            print("✅ Removed \(server.countryLong) from blacklist")
+                        }),
+                        secondaryButton: .cancel()
+                    )
                 }
             }
         }
     }
     
+    // MARK: - Helper Methods
+    
     private func filterAndSortServers() {
-        var filtered = servers
+        var filtered = serverStore.servers
         
         // Apply search filter
         if !searchText.isEmpty {
@@ -226,139 +343,192 @@ struct ServersTab: View {
     }
     
     private func connectToServer(_ server: VPNServer) {
-        print("🔗 Connecting to \(server.countryLong) (\(server.ip))")
-        // TODO: Trigger connection through coordinator
-        NotificationCenter.default.post(
-            name: NSNotification.Name("ConnectToServer"),
-            object: nil,
-            userInfo: ["server": server]
-        )
+            print("🔗 Connecting to \(server.countryLong) (\(server.ip))")
+            
+            // Store server info in MonitoringStore BEFORE connecting
+            // This ensures UI can track which server we're connecting to
+            MonitoringStore.shared.setConnectedServer(
+                country: server.countryLong,
+                countryShort: server.countryShort,
+                serverName: server.hostName
+            )
+            
+            // Use existing coordinator logic (DRY principle!)
+            coordinatorWrapper.connect(to: server) { result in
+                DispatchQueue.main.async {
+                    switch result {
+                    case .success:
+                        print("✅ Connected to \(server.countryLong)")
+                        // UI will update automatically via MonitoringStore
+                        
+                    case .failure(let error):
+                        // Clear the server info if connection failed
+                        MonitoringStore.shared.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
+                        activeAlert = .error(error.localizedDescription)
+                    }
+                }
+            }
+        }
     }
-}
-
-// MARK: - Server Row
-
-struct ServerRow: View {
-    let server: VPNServer
-    let isBlacklisted: Bool
-    let onConnect: () -> Void
-    let onBlacklist: () -> Void
     
-    var body: some View {
-        HStack(spacing: 12) {
-            // Flag emoji or indicator
-            Text(flagEmoji(for: server.countryShort))
-                .font(.title2)
-                .frame(width: 40)
-            
-            // Country
-            VStack(alignment: .leading, spacing: 4) {
-                Text(server.countryLong)
-                    .font(.system(size: 13, weight: .medium))
-                Text(server.ip)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-            }
-            .frame(width: 140, alignment: .leading)
-            
-            // Ping
-            if let ping = server.pingMS {
-                VStack(spacing: 2) {
-                    Text("\(ping)")
-                        .font(.system(size: 13, design: .monospaced))
-                    Text("ms")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: 60)
-            } else {
-                Text("-")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .frame(width: 60)
-            }
-            
-            // Speed
-            if let speed = server.speedBps {
-                VStack(spacing: 2) {
-                    Text(formatSpeed(speed))
-                        .font(.system(size: 13, design: .monospaced))
-                    Text("Mbps")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                .frame(width: 80)
-            } else {
-                Text("-")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-                    .frame(width: 80)
-            }
-            
-            // Score
-            HStack(spacing: 4) {
-                Image(systemName: "star.fill")
-                    .font(.caption)
-                    .foregroundColor(.yellow)
-                Text("\(server.score)")
-                    .font(.system(size: 12, design: .monospaced))
-            }
-            .frame(width: 120)
-            
-            Spacer()
-            
-            // Status indicator
-            if isBlacklisted {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundColor(.red)
-                    .help("Blacklisted")
-            }
-            
-            // Actions
-            HStack(spacing: 8) {
-                Button(action: onConnect) {
-                    Text("Connect")
-                        .font(.caption)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(isBlacklisted ? Color.gray.opacity(0.3) : Color.blue)
-                        .foregroundColor(.white)
-                        .cornerRadius(6)
-                }
-                .buttonStyle(.plain)
-                .disabled(isBlacklisted)
+    // MARK: - Server Row
+    
+    struct ServerRow: View {
+        let server: VPNServer
+        let isBlacklisted: Bool
+        let isConnected: Bool
+        let onConnect: () -> Void
+        let onBlacklist: () -> Void
+        
+        var body: some View {
+            HStack(spacing: 12) {
+                // Flag emoji or indicator
+                Text(flagEmoji(for: server.countryShort))
+                    .font(.title2)
+                    .frame(width: 40)
                 
-                Button(action: onBlacklist) {
-                    Image(systemName: "hand.raised.slash.fill")
-                        .font(.system(size: 11))
-                        .foregroundColor(.white)
-                        .padding(6)
-                        .background(Color.orange)
-                        .cornerRadius(6)
+                // Country
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(server.countryLong)
+                            .font(.system(size: 13, weight: isConnected ? .bold : .medium))
+                        
+                        if isConnected {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        }
+                    }
+                    Text(server.ip)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(.plain)
-                .help("Add to Blacklist")
+                .frame(width: 140, alignment: .leading)
+                
+                // Ping
+                if let ping = server.pingMS {
+                    VStack(spacing: 2) {
+                        Text("\(ping)")
+                            .font(.system(size: 13, design: .monospaced))
+                        Text("ms")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(width: 60)
+                } else {
+                    Text("-")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .frame(width: 60)
+                }
+                
+                // Speed
+                if let speed = server.speedBps {
+                    VStack(spacing: 2) {
+                        Text(formatSpeed(speed))
+                            .font(.system(size: 13, design: .monospaced))
+                        Text("Mbps")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(width: 80)
+                } else {
+                    Text("-")
+                        .font(.system(size: 13))
+                        .foregroundColor(.secondary)
+                        .frame(width: 80)
+                }
+                
+                // Score
+                HStack(spacing: 4) {
+                    Image(systemName: "star.fill")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                    Text("\(server.score)")
+                        .font(.system(size: 12, design: .monospaced))
+                }
+                .frame(width: 120)
+                
+                Spacer()
+                
+                // Status indicator
+                if isBlacklisted {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.red)
+                        .help("Blacklisted")
+                }
+                
+                // Actions
+                HStack(spacing: 8) {
+                    Button(action: {
+                        print("🔘 [ServerRow] Connect button tapped for \(server.countryLong)")
+                        onConnect()
+                    }) {
+                        Text(isConnected ? "Connected" : "Connect")
+                            .font(.caption)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(isConnected ? Color.green : Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isBlacklisted || isConnected)
+                    .opacity((isBlacklisted || isConnected) ? 0.5 : 1.0)
+                    
+                    Button(action: onBlacklist) {
+                        Image(systemName: "hand.raised.slash.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(.white)
+                            .padding(6)
+                            .background(Color.orange)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Add to Blacklist")
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(isBlacklisted ? Color.red.opacity(0.05) : Color.clear)
+        }
+        
+        private func flagEmoji(for countryCode: String) -> String {
+            let base: UInt32 = 127397
+            var emoji = ""
+            for scalar in countryCode.uppercased().unicodeScalars {
+                if let scalarValue = UnicodeScalar(base + scalar.value) {
+                    emoji.unicodeScalars.append(scalarValue)
+                }
+            }
+            return emoji.isEmpty ? "🌍" : emoji
+        }
+        
+        private func formatSpeed(_ bps: Int) -> String {
+            let mbps = Double(bps) / 1_000_000
+            return String(format: "%.1f", mbps)
+        }
+    }
+
+
+// MARK: - Alert Type
+
+extension ServersTab {
+    enum AlertType: Identifiable {
+        case connect(VPNServer)
+        case reconnect(VPNServer)
+        case error(String)
+        case blacklistAdd(VPNServer)
+        case blacklistRemove(VPNServer)
+        
+        var id: String {
+            switch self {
+            case .connect(let server): return "connect_\(server.id)"
+            case .reconnect(let server): return "reconnect_\(server.id)"
+            case .error(let msg): return "error_\(msg.hashValue)"
+            case .blacklistAdd(let server): return "blacklist_add_\(server.id)"
+            case .blacklistRemove(let server): return "blacklist_remove_\(server.id)"
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .background(isBlacklisted ? Color.red.opacity(0.05) : Color.clear)
-    }
-    
-    private func flagEmoji(for countryCode: String) -> String {
-        let base: UInt32 = 127397
-        var emoji = ""
-        for scalar in countryCode.uppercased().unicodeScalars {
-            if let scalarValue = UnicodeScalar(base + scalar.value) {
-                emoji.unicodeScalars.append(scalarValue)
-            }
-        }
-        return emoji.isEmpty ? "🌍" : emoji
-    }
-    
-    private func formatSpeed(_ bps: Int) -> String {
-        let mbps = Double(bps) / 1_000_000
-        return String(format: "%.1f", mbps)
     }
 }
-

@@ -15,15 +15,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Hide Dock icon in Release builds (menu-bar-only app)
-        #if !DEBUG
+#if !DEBUG
         NSApp.setActivationPolicy(.accessory)
-        #endif
+#endif
         
         // Store preferences manager for backend switching
         self.preferencesManager = PreferencesManager()
         
         // Setup VPN backend
         setupVPNBackend()
+        
+        // Pre-fetch server list for instant availability
+        Task { await ServerStore.shared.warmupCache() }
         
         // Listen for backend switch notifications from Settings
         NotificationCenter.default.addObserver(
@@ -132,12 +135,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         // Monitor connection state changes and update UI
+        // (Must be outside if/else to work on both first init and backend switch)
         connectionManager.onStateChange = { [weak self] newState in
-            print("🎨 [AppDelegate] UI update triggered for state: \(newState)")
+            print("🎨 [AppDelegate] UI update triggered for state: \(newState.idString)")
             DispatchQueue.main.async {
                 self?.statusBarController?.rebuildMenu()
+                
+                // Immediately refresh stats to update UI
+                // Note: Settings tabs manage VPNMonitor.startMonitoring() via onAppear/onDisappear
+                // We don't start/stop here to avoid ref count conflicts
+                VPNMonitor.shared.refreshStats()
             }
         }
     }
 }
-

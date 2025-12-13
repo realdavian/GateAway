@@ -105,6 +105,15 @@ struct SettingsView: View {
             }
         }
         .frame(minWidth: 900, minHeight: 650)
+        .onAppear {
+            // Start monitoring when Settings window opens
+            // This ensures continuous stats updates regardless of which tab is active
+            VPNMonitor.shared.startMonitoring()
+        }
+        .onDisappear {
+            // Stop monitoring when Settings window closes to save resources
+            VPNMonitor.shared.stopMonitoring()
+        }
     }
 }
 

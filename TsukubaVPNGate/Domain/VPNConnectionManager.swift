@@ -10,6 +10,18 @@ enum VPNConnectionState: Equatable {
     case error(String)
 }
 
+extension VPNConnectionState {
+    var idString: String {
+        switch self {
+        case .disconnected: return "disconnected"
+        case .connecting(let server): return "connecting_\(server.id)"
+        case .connected(let server): return "connected_\(server.id)"
+        case .disconnecting: return "disconnecting"
+        case .error(let message): return "error_\(message)"
+        }
+    }
+}
+
 // MARK: - Protocol (ISP: Interface segregation - only connection management)
 
 protocol VPNConnectionManagerProtocol {
@@ -25,7 +37,7 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     private(set) var currentState: VPNConnectionState = .disconnected {
         didSet {
             if oldValue != currentState {
-                print("🔄 [VPNConnectionManager] State changed: \(oldValue) → \(currentState)")
+                print("🔄 [VPNConnectionManager] State changed: \(oldValue.idString) → \(currentState.idString)")
                 onStateChange?(currentState)
             }
         }
