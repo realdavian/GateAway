@@ -90,7 +90,18 @@ final class OpenVPNController: VPNControlling {
     func connect(server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
         print("🔗 [OpenVPN] Connecting to \(server.countryLong) (\(server.hostName))")
         
-        // Check if OpenVPN is installed
+        // 1. Pre-flight Permission Check
+        do {
+            try PermissionService.shared.checkOpenVPNPermission()
+        } catch {
+            print("❌ [OpenVPN] Permission check failed: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                completion(.failure(error))
+            }
+            return
+        }
+        
+        // Check if OpenVPN is installed (redundant with PermissionService but keeps specific error)
         guard isInstalled() else {
             DispatchQueue.main.async {
                 completion(.failure(OpenVPNError.notInstalled))
@@ -103,7 +114,7 @@ final class OpenVPNController: VPNControlling {
             let configPath = try createConfiguration(for: server)
             currentConfigPath = configPath
             
-            // Start OpenVPN process - this will block until user authenticates!
+            // Start OpenVPN process
             startOpenVPN(configPath: configPath) { [weak self] error in
                 guard let self = self else { return }
                 
@@ -115,45 +126,9 @@ final class OpenVPNController: VPNControlling {
                     return
                 }
                 
-                // Process is now running! Wait for CONNECTED state
+                // Process is now running! Start non-blocking polling
                 print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
-                
-                DispatchQueue.global(qos: .userInitiated).async {
-                    var attempts = 0
-                    let maxAttempts = 30 // 30 seconds max
-                    
-                    while attempts < maxAttempts {
-                        Thread.sleep(forTimeInterval: 1.0)
-                        attempts += 1
-                        
-                        if self.isActuallyConnected() {
-                            print("✅ [OpenVPN] Connection established after \(attempts) seconds")
-                            DispatchQueue.main.async {
-                                completion(.success(()))
-                            }
-                            return
-                        }
-                        
-                        // Check if process crashed
-                        if !self.isOpenVPNRunning() {
-                            print("❌ [OpenVPN] Process terminated during connection")
-                            if let logContent = try? String(contentsOfFile: self.logFilePath, encoding: .utf8) {
-                                let lastLines = logContent.components(separatedBy: "\n").suffix(5).joined(separator: " | ")
-                                print("📋 [OpenVPN] Log: \(lastLines)")
-                            }
-                            DispatchQueue.main.async {
-                                completion(.failure(OpenVPNError.connectionFailed("Connection failed - check log")))
-                            }
-                            return
-                        }
-                    }
-                    
-                    // Timeout
-                    print("⚠️ [OpenVPN] Connection timeout after \(maxAttempts) seconds")
-                    DispatchQueue.main.async {
-                        completion(.failure(OpenVPNError.connectionFailed("Connection timeout - check server")))
-                    }
-                }
+                self.startConnectionPolling(completion: completion)
             }
             
         } catch {
@@ -162,6 +137,70 @@ final class OpenVPNController: VPNControlling {
                 completion(.failure(error))
             }
         }
+    }
+    
+    private func startConnectionPolling(completion: @escaping (Result<Void, Error>) -> Void) {
+        let pollingQueue = DispatchQueue(label: "com.tsukubavpngate.connection-polling", qos: .userInitiated)
+        let maxAttempts = 30
+        
+        func pollAttempt(attemptNumber: Int) {
+            // Run all checks on background queue
+            pollingQueue.async { [weak self] in
+                guard let self = self else {
+                    DispatchQueue.main.async {
+                        completion(.failure(OpenVPNError.connectionFailed("Controller deallocated")))
+                    }
+                    return
+                }
+                
+                // 1. Check Success (file I/O and socket I/O on background thread)
+                if self.isActuallyConnected() {
+                    print("✅ [OpenVPN] Connection established after \(attemptNumber) seconds")
+                    DispatchQueue.main.async {
+                        completion(.success(()))
+                    }
+                    return
+                }
+                
+                // 2. Check Failure (Process Crash)
+                if !self.isOpenVPNRunning() {
+                    print("❌ [OpenVPN] Process terminated during connection")
+                    
+                    // Try to read log (file I/O on background thread)
+                    var logMsg = "Connection failed - check log"
+                    if let logContent = try? String(contentsOfFile: self.logFilePath, encoding: .utf8) {
+                        let lastLines = logContent.components(separatedBy: "\n").suffix(5).joined(separator: " | ")
+                        print("📋 [OpenVPN] Log: \(lastLines)")
+                        // Extract meaningful error if possible
+                        if lastLines.contains("AUTH_FAILED") {
+                            logMsg = "Authentication Failed"
+                        }
+                    }
+                    
+                    DispatchQueue.main.async {
+                        completion(.failure(OpenVPNError.connectionFailed(logMsg)))
+                    }
+                    return
+                }
+                
+                // 3. Check Timeout
+                if attemptNumber >= maxAttempts {
+                    print("⚠️ [OpenVPN] Connection timeout after \(maxAttempts) seconds")
+                    DispatchQueue.main.async {
+                        completion(.failure(OpenVPNError.connectionFailed("Connection timeout - check server")))
+                    }
+                    return
+                }
+                
+                // 4. Continue polling (schedule next attempt)
+                pollingQueue.asyncAfter(deadline: .now() + 1.0) {
+                    pollAttempt(attemptNumber: attemptNumber + 1)
+                }
+            }
+        }
+        
+        // Start first attempt
+        pollAttempt(attemptNumber: 1)
     }
     
     func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
@@ -204,7 +243,6 @@ final class OpenVPNController: VPNControlling {
             }
             
             // Stop monitoring before cleanup
-            // Note: VPNMonitor uses reference counting, so it only stops when all observers are done
             print("📊 [OpenVPN] Stopping VPN monitoring...")
             self.vpnMonitor.stopMonitoring()
             
@@ -252,9 +290,8 @@ final class OpenVPNController: VPNControlling {
         
         return 0
     }
-    
+
     // MARK: - Helper Methods
-    
     func isInstalled() -> Bool {
         return fileManager.fileExists(atPath: openVPNBinary)
     }
@@ -265,6 +302,7 @@ final class OpenVPNController: VPNControlling {
             return (false, nil)
         }
         
+        // Parse state: format is "timestamp,STATE,description,IP,..."
         let components = stateOutput.components(separatedBy: ",")
         if components.count >= 2 {
             let state = components[1]
@@ -275,7 +313,7 @@ final class OpenVPNController: VPNControlling {
         
         return (false, nil)
     }
-    
+
     // MARK: - Private Methods
     
     private func createConfiguration(for server: VPNServer) throws -> String {
@@ -285,46 +323,48 @@ final class OpenVPNController: VPNControlling {
             throw OpenVPNError.configurationCreationFailed
         }
         
-        // Create auth file with VPNGate default credentials
+        // Securely handle credentials
         let authFilePath = "\(configDirectory)/auth.txt"
-        try "vpn\nvpn\n".write(toFile: authFilePath, atomically: true, encoding: .utf8)
         
-        // Build clean config (remove ALL auth-related and management lines from original)
+        // 1. Try to get password from Keychain (account "vpn")
+        let passwordData = try? KeychainManager.shared.get(account: "vpn")
+        let password = passwordData.flatMap { String(data: $0, encoding: .utf8) } ?? "vpn"
+        
+        // 2. Write to file with restricted permissions (0600)
+        // Note: 'write(toFile...)' uses default permissions. 
+        // We should explicitly set permissions after writing.
+        let authContent = "vpn\n\(password)\n" // standard VPNGate user is 'vpn'
+        try authContent.write(toFile: authFilePath, atomically: true, encoding: .utf8)
+        
+        try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: authFilePath)
+        
+        // Build clean config
         var cleanLines = configString.components(separatedBy: "\n").filter { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // Remove any existing auth or management directives to avoid conflicts
             return !trimmed.hasPrefix("#auth-user-pass") &&
-                   !trimmed.hasPrefix("##auth-user-pass") &&
                    !trimmed.hasPrefix("auth-user-pass") &&
-                   !trimmed.hasPrefix("auth-nocache") &&
-                   !trimmed.hasPrefix("auth-retry") &&
-                   !trimmed.hasPrefix("management-client-auth") &&
                    !trimmed.hasPrefix("management ")
         }
         
-        // Add our configuration block at the end
+        // Add our configuration block
         cleanLines.append("")
         cleanLines.append("# TsukubaVPNGate Configuration")
-
-        // 1) Authentication (if used)
         cleanLines.append("auth-user-pass \(authFilePath)")
         cleanLines.append("auth-nocache")
         cleanLines.append("auth-retry nointeract")
-
-        // 2) Ciphers MUST come early
+        
+        // Standard ciphers
         cleanLines.append("data-ciphers AES-128-CBC:AES-256-GCM:AES-128-GCM:CHACHA20-POLY1305")
         cleanLines.append("data-ciphers-fallback AES-128-CBC")
         cleanLines.append("cipher AES-128-CBC")
-
-        // 3) Routing + networking options
+        
+        // Networking
         cleanLines.append("redirect-gateway def1")
         cleanLines.append("dhcp-option DNS 8.8.8.8")
         cleanLines.append("dhcp-option DNS 8.8.4.4")
-
-        // 4) Permissions / script
+        
+        // Permissions & Management
         cleanLines.append("script-security 2")
-
-        // 5) Management + daemon
         cleanLines.append("management \(managementSocketPath) unix")
         cleanLines.append("daemon")
         cleanLines.append("log \(logFilePath)")
@@ -332,9 +372,7 @@ final class OpenVPNController: VPNControlling {
         cleanLines.append("persist-tun")
         cleanLines.append("persist-key")
         cleanLines.append("verb 3")
-
         cleanLines.append("")
-
         
         let finalConfig = cleanLines.joined(separator: "\n")
         
@@ -346,7 +384,6 @@ final class OpenVPNController: VPNControlling {
         try finalConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
         
         print("✅ [OpenVPN] Created config: \(configPath)")
-        print("✅ [OpenVPN] Auth file: \(authFilePath)")
         
         return configPath
     }

@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 
 // MARK: - Status Bar Controller (Presentation Layer - SRP: Menu bar UI only)
 
@@ -6,6 +7,7 @@ final class StatusBarController: NSObject {
     private var coordinator: AppCoordinatorProtocol
     private let statusItem: NSStatusItem
     private let settingsWindow = SettingsWindowController()
+    private var cancellables = Set<AnyCancellable>()
     
     var hasVisibleStatusItem: Bool {
         guard let button = statusItem.button else { return false }
@@ -23,6 +25,16 @@ final class StatusBarController: NSObject {
         
         configureStatusButton()
         rebuildMenu()
+        
+        // Subscribe to MonitoringStore for real-time icon updates
+        print("🎯 [StatusBarController] Subscribing to MonitoringStore")
+        MonitoringStore.shared.$vpnStatistics
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] stats in
+                print("🎯 [StatusBarController] Received update: \(stats.connectionState)")
+                self?.updateStatusIcon(storeState: stats.connectionState)
+            }
+            .store(in: &cancellables)
     }
     
     // MARK: - Dynamic Updates
@@ -37,13 +49,14 @@ final class StatusBarController: NSObject {
         updateStatusIcon()
     }
     
-    private func updateStatusIcon() {
+    private func updateStatusIcon(storeState: VPNStatistics.ConnectionState? = nil) {
         guard let button = statusItem.button else { return }
         
-        let state = coordinator.getCurrentConnectionState()
+        // Use provided store state, or fall back to store's current state
+        let state = storeState ?? MonitoringStore.shared.connectionState
         
         // Choose icon based on connection state
-        let (iconName, isTemplate) = iconForState(state)
+        let (iconName, isTemplate) = iconForStatisticsState(state)
         
         // Create and configure image
         if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "TsukubaVPNGate") {
@@ -64,27 +77,28 @@ final class StatusBarController: NSObject {
         }
     }
     
-    private func iconForState(_ state: VPNConnectionState) -> (symbolName: String, isTemplate: Bool) {
+    // Map VPNStatistics.ConnectionState to icon
+    private func iconForStatisticsState(_ state: VPNStatistics.ConnectionState) -> (symbolName: String, isTemplate: Bool) {
         switch state {
         case .disconnected:
-            // Disconnected: Open lock (template adapts to menu bar color)
             return ("lock.open.fill", true)
-            
-        case .connecting:
-            // Connecting: Arrows in circle (animated feel)
+        case .connecting, .reconnecting:
             return ("arrow.triangle.2.circlepath", true)
-            
         case .connected:
-            // Connected: Filled shield (strong security indicator)
             return ("shield.lefthalf.filled", true)
-            
-        case .disconnecting:
-            // Disconnecting: Loading indicator
-            return ("arrow.triangle.2.circlepath", true)
-            
         case .error:
-            // Error: Exclamation shield
-            return ("exclamationmark.shield.fill", false) // Not template, so it can show in color
+            return ("exclamationmark.shield.fill", false)
+        }
+    }
+    
+    // Legacy helper for Coordinator state (kept if needed for menu logic, but not for icon anymore)
+    private func iconForState(_ state: VPNConnectionState) -> (symbolName: String, isTemplate: Bool) {
+        switch state {
+        case .disconnected: return ("lock.open.fill", true)
+        case .connecting: return ("arrow.triangle.2.circlepath", true)
+        case .connected: return ("shield.lefthalf.filled", true)
+        case .disconnecting: return ("arrow.triangle.2.circlepath", true)
+        case .error: return ("exclamationmark.shield.fill", false)
         }
     }
     

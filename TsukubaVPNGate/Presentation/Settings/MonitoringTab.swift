@@ -3,10 +3,10 @@ import SwiftUI
 // MARK: - Monitoring Tab (Real-time VPN Statistics)
 
 struct MonitoringTab: View {
-    @ObservedObject var viewModel: MonitoringViewModel
+    @ObservedObject private var store = MonitoringStore.shared
 
     private var vpnStatistics: VPNStatistics {
-        viewModel.vpnStatistics
+        store.vpnStatistics
     }
 
     private var connectedSinceString: String? {
@@ -186,6 +186,12 @@ struct MonitoringTab: View {
                 }
             }
             .padding()
+        }
+        .onAppear {
+            VPNMonitor.shared.startMonitoring()
+        }
+        .onDisappear {
+            VPNMonitor.shared.stopMonitoring()
         }
     }
 

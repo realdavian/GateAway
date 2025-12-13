@@ -17,14 +17,18 @@ final class VPNMonitor: VPNMonitorProtocol {
     // MARK: - Shared Instance
     static let shared = VPNMonitor()
     
-    private let statisticsSubject = CurrentValueSubject<VPNStatistics, Never>(.empty)
+    // MARK: - Monitoring Lifecycle
+    
+    private let monitorQueue = DispatchQueue(label: "com.tsukubavpngate.monitor", qos: .userInitiated)
     private var timer: Timer?
+    
     private let managementSocketPath: String
     private let fileManager = FileManager.default
     private var monitoringRefCount = 0 // Track number of observers
     
+    // Forward to MonitoringStore's publisher
     var statisticsPublisher: AnyPublisher<VPNStatistics, Never> {
-        return statisticsSubject.eraseToAnyPublisher()
+        return MonitoringStore.shared.$vpnStatistics.eraseToAnyPublisher()
     }
     
     private init() {
@@ -41,13 +45,14 @@ final class VPNMonitor: VPNMonitorProtocol {
         // Only start timer if not already running
         guard timer == nil else { return }
         
-        // Initial refresh
-        refreshStats()
-        
-        // Update every second
+        // Use Timer on main queue (required for @MainActor access)
+        // I/O work will be dispatched to background within refreshStats()
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.refreshStats()
         }
+        
+        // Initial refresh
+        refreshStats()
     }
     
     func stopMonitoring() {
@@ -64,22 +69,38 @@ final class VPNMonitor: VPNMonitorProtocol {
     }
     
     func refreshStats() {
-        // Check if management socket exists
+        // RUNNING ON MAIN THREAD (called from Timer)
+        print("📊 [VPNMonitor] refreshStats() called on thread: \(Thread.current)")
+        
+        // Synchronously access @MainActor store
+        let currentStats = MonitoringStore.shared.vpnStatistics
+        print("📊 [VPNMonitor] Current stats: \(currentStats.connectionState)")
+        
+        // Dispatch I/O work to background queue
+        monitorQueue.async { [weak self] in
+            print("📊 [VPNMonitor] Processing stats on background queue")
+            self?.processStatsOnBackground(currentStats: currentStats)
+        }
+    }
+    
+    private func processStatsOnBackground(currentStats: VPNStatistics) {
+        // RUNNING ON BACKGROUND QUEUE - monitorQueue
+        
+        // Check if management socket exists (file I/O on background thread)
         guard fileManager.fileExists(atPath: managementSocketPath) else {
-            // Socket gone means VPN disconnected, send empty stats silently
-            DispatchQueue.main.async { [weak self] in
-                self?.statisticsSubject.send(.empty)
+            // Socket gone means VPN disconnected, send empty stats loudly
+            DispatchQueue.main.async {
+                MonitoringStore.shared.updateStatistics(.empty)
             }
             return
         }
         
-        // Query OpenVPN for current stats
+        // Query OpenVPN for current stats (network I/O on background thread)
         let state = queryState()
         let status = queryStatus()
         
         // Build statistics object
         var stats = VPNStatistics.empty
-        let currentStats = statisticsSubject.value
         
         // Parse state
         if let state = state {
@@ -90,7 +111,7 @@ final class VPNMonitor: VPNMonitorProtocol {
         
         // Parse status for detailed info
         if let status = status {
-            stats = parseStatus(status, currentStats: currentStats)
+            stats = parseStatus(status, currentStats: currentStats, parsedState: stats)
         } else {
             // Keep previous byte counts if status query fails
             stats = VPNStatistics(
@@ -109,9 +130,9 @@ final class VPNMonitor: VPNMonitorProtocol {
             )
         }
         
-        // Always publish on main thread
-        DispatchQueue.main.async { [weak self] in
-            self?.statisticsSubject.send(stats)
+        // Always publish on main thread (MonitoringStore is @MainActor)
+        DispatchQueue.main.async {
+            MonitoringStore.shared.updateStatistics(stats)
         }
     }
     
@@ -161,8 +182,15 @@ final class VPNMonitor: VPNMonitorProtocol {
     
     private func parseState(_ stateOutput: String, currentStats: VPNStatistics) -> VPNStatistics {
         // State format: "1234567890,CONNECTED,SUCCESS,10.8.0.6,92.202.199.250"
+        // Filter out metadata lines (starting with >) and empty lines
         let lines = stateOutput.components(separatedBy: "\n")
-        guard let stateLine = lines.first(where: { $0.contains(",CONNECTED,") || $0.contains(",CONNECTING,") }) else {
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty && !$0.hasPrefix(">") && !$0.hasPrefix("END") }
+        
+        print("📊 [VPNMonitor] parseState filtered lines: \(lines)")
+        
+        guard let stateLine = lines.first(where: { $0.range(of: "^[0-9]+,", options: .regularExpression) != nil }) else {
+            print("⚠️ [VPNMonitor] No valid state line found in: \(stateOutput)")
             return VPNStatistics(
                 connectionState: .disconnected,
                 connectedSince: nil,
@@ -179,13 +207,17 @@ final class VPNMonitor: VPNMonitorProtocol {
             )
         }
         
+        print("📊 [VPNMonitor] Parsing state line: \(stateLine)")
+        
         let components = stateLine.components(separatedBy: ",")
         guard components.count >= 5 else { return currentStats }
         
         let timestamp = TimeInterval(components[0]) ?? 0
-        let stateStr = components[1]
+        let stateStr = components[1].trimmingCharacters(in: .whitespacesAndNewlines)  // Trim \r and spaces
         let vpnIP = components.count > 3 ? components[3] : nil
         let publicIP = components.count > 4 ? components[4] : nil
+        
+        print("📊 [VPNMonitor] Parsed state string: '\(stateStr)'")
         
         let connectionState: VPNStatistics.ConnectionState
         if stateStr == "CONNECTED" {
@@ -197,6 +229,8 @@ final class VPNMonitor: VPNMonitorProtocol {
         } else {
             connectionState = .disconnected
         }
+        
+        print("📊 [VPNMonitor] Determined connection state: \(connectionState)")
         
         let connectedSince = timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
         
@@ -216,7 +250,7 @@ final class VPNMonitor: VPNMonitorProtocol {
         )
     }
     
-    private func parseStatus(_ statusOutput: String, currentStats: VPNStatistics) -> VPNStatistics {
+    private func parseStatus(_ statusOutput: String, currentStats: VPNStatistics, parsedState: VPNStatistics) -> VPNStatistics {
         // For CLIENT mode, OpenVPN reports:
         // TCP/UDP read bytes,123456  (bytes received from server)
         // TCP/UDP write bytes,78910  (bytes sent to server)
@@ -274,10 +308,10 @@ final class VPNMonitor: VPNMonitorProtocol {
             Double(bytesSent - currentStats.bytesSent) : 0.0
         
         return VPNStatistics(
-            connectionState: currentStats.connectionState,
-            connectedSince: currentStats.connectedSince,
-            vpnIP: currentStats.vpnIP,
-            publicIP: currentStats.publicIP,
+            connectionState: parsedState.connectionState,
+            connectedSince: parsedState.connectedSince,
+            vpnIP: parsedState.vpnIP,
+            publicIP: parsedState.publicIP,
             bytesReceived: bytesReceived,
             bytesSent: bytesSent,
             currentDownloadSpeed: downloadSpeed,

@@ -5,9 +5,11 @@ import SwiftUI
 struct OverviewTab: View {
     @State private var isOpenVPNInstalled: Bool = false
     @State private var openVPNVersion: String = ""
-    @State private var vpnStatistics: VPNStatistics = .empty
+    @ObservedObject private var store = MonitoringStore.shared
     
-    private let vpnMonitor = VPNMonitor.shared
+    private var vpnStatistics: VPNStatistics {
+        store.vpnStatistics
+    }
     
     var body: some View {
         ScrollView {
@@ -108,7 +110,7 @@ struct OverviewTab: View {
                             
                             // Quick stats
                             if case .connected = vpnStatistics.connectionState {
-                                HStack(spacing: 16) {
+                                 HStack(spacing: 16) {
                                     StatItem(
                                         icon: "arrow.down.circle.fill",
                                         label: "Download",
@@ -159,13 +161,10 @@ struct OverviewTab: View {
         }
         .onAppear {
             checkOpenVPNStatus()
-            vpnMonitor.startMonitoring()
+            VPNMonitor.shared.startMonitoring()
         }
         .onDisappear {
-            vpnMonitor.stopMonitoring()
-        }
-        .onReceive(vpnMonitor.statisticsPublisher) { stats in
-            vpnStatistics = stats
+            VPNMonitor.shared.stopMonitoring()
         }
     }
     
