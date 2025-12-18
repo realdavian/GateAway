@@ -215,13 +215,17 @@ final class StatusBarController: NSObject {
         // Show loading state
         updateStatusIcon()
         
-        coordinator.refreshServerList { [weak self] result in
-            switch result {
-            case .success:
-                self?.rebuildMenu()
-            case .failure(let error):
-                self?.showError(title: "Refresh Failed", message: error.localizedDescription)
-                self?.rebuildMenu()
+        Task {
+            do {
+                try await coordinator.refreshServerList()
+                await MainActor.run {
+                    self.rebuildMenu()
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.showError(title: "Refresh Failed", message: error.localizedDescription)
+                    self?.rebuildMenu()
+                }
             }
         }
     }
@@ -230,13 +234,17 @@ final class StatusBarController: NSObject {
         // Show connecting state immediately
         updateStatusIcon()
         
-        coordinator.connectToBestServer { [weak self] result in
-            switch result {
-            case .success:
-                self?.rebuildMenu()
-            case .failure(let error):
-                self?.showError(title: "Connection Failed", message: error.localizedDescription)
-                self?.rebuildMenu()
+        Task {
+            do {
+                try await coordinator.connectToBestServer()
+                await MainActor.run {
+                    self.rebuildMenu()
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.showError(title: "Connection Failed", message: error.localizedDescription)
+                    self?.rebuildMenu()
+                }
             }
         }
     }
@@ -248,13 +256,17 @@ final class StatusBarController: NSObject {
         // Show connecting state immediately
         updateStatusIcon()
         
-        coordinator.connectToServer(server) { [weak self] result in
-            switch result {
-            case .success:
-                self?.rebuildMenu()
-            case .failure(let error):
-                self?.showError(title: "Connection Failed", message: error.localizedDescription)
-                self?.rebuildMenu()
+        Task {
+            do {
+                try await coordinator.connectToServer(server)
+                await MainActor.run {
+                    self.rebuildMenu()
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.showError(title: "Connection Failed", message: error.localizedDescription)
+                    self?.rebuildMenu()
+                }
             }
         }
     }
@@ -263,13 +275,17 @@ final class StatusBarController: NSObject {
         // Show disconnecting state immediately
         updateStatusIcon()
         
-        coordinator.disconnect { [weak self] result in
-            switch result {
-            case .success:
-                self?.rebuildMenu()
-            case .failure(let error):
-                self?.showError(title: "Disconnection Failed", message: error.localizedDescription)
-                self?.rebuildMenu()
+        Task {
+            do {
+                try await coordinator.disconnect()
+                await MainActor.run {
+                    self.rebuildMenu()
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    self?.showError(title: "Disconnection Failed", message: error.localizedDescription)
+                    self?.rebuildMenu()
+                }
             }
         }
     }

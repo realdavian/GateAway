@@ -54,20 +54,17 @@ final class ServerStore: ObservableObject {
         
         // Fetch in background without showing loading state
         print("📦 [ServerStore] Warmup: fetching servers...")
-        api.fetchServers { [weak self] result in
-            Task { @MainActor in
-                guard let self else { return }
-                
-                switch result {
-                case .success(let fetchedServers):
+        Task {
+            do {
+                let fetchedServers = try await api.fetchServers()
+                await MainActor.run {
                     self.servers = fetchedServers
                     self.cache.cacheServers(fetchedServers)
                     print("📦 [ServerStore] Warmup: cached \(fetchedServers.count) servers")
-                    
-                case .failure(let error):
-                    print("⚠️ [ServerStore] Warmup failed: \(error.localizedDescription)")
-                    // Don't set lastError during warmup - it's background
                 }
+            } catch {
+                print("⚠️ [ServerStore] Warmup failed: \(error.localizedDescription)")
+                // Don't set lastError during warmup - it's background
             }
         }
     }
@@ -78,18 +75,18 @@ final class ServerStore: ObservableObject {
         isLoading = true
         lastError = nil
         
-        api.fetchServers { [weak self] result in
-            Task { @MainActor in
-                guard let self else { return }
-                self.isLoading = false
-                
-                switch result {
-                case .success(let fetchedServers):
+        Task {
+            do {
+                let fetchedServers = try await api.fetchServers()
+                await MainActor.run {
+                    self.isLoading = false
                     self.servers = fetchedServers
                     self.cache.cacheServers(fetchedServers)
                     print("✅ [ServerStore] Fetched \(fetchedServers.count) servers from API")
-                    
-                case .failure(let error):
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
                     self.lastError = error
                     print("❌ [ServerStore] Fetch failed: \(error.localizedDescription)")
                 }

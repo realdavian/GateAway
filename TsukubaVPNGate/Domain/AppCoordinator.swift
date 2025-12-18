@@ -3,10 +3,10 @@ import Foundation
 // MARK: - Coordinator Protocol (OCP: Open for extension)
 
 protocol AppCoordinatorProtocol {
-    func refreshServerList(completion: @escaping (Result<Void, Error>) -> Void)
-    func connectToBestServer(completion: @escaping (Result<Void, Error>) -> Void)
-    func connectToServer(_ server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void)
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
+    func refreshServerList() async throws
+    func connectToBestServer() async throws
+    func connectToServer(_ server: VPNServer) async throws
+    func disconnect() async throws
     
     func getAvailableCountries() -> [String]
     func getTopServers(forCountry country: String) -> [VPNServer]
@@ -39,12 +39,8 @@ final class AppCoordinator: AppCoordinatorProtocol {
     
     // MARK: - Server Management
     
-    func refreshServerList(completion: @escaping (Result<Void, Error>) -> Void) {
-        serverRepository.fetchServers { result in
-            DispatchQueue.main.async {
-                completion(result.map { _ in () })
-            }
-        }
+    func refreshServerList() async throws {
+        _ = try await serverRepository.fetchServers()
     }
     
     func getAvailableCountries() -> [String] {
@@ -64,32 +60,22 @@ final class AppCoordinator: AppCoordinatorProtocol {
     
     // MARK: - Connection Management
     
-    func connectToBestServer(completion: @escaping (Result<Void, Error>) -> Void) {
+    func connectToBestServer() async throws {
         let servers = serverRepository.getCachedServers()
         
         guard let bestServer = selectionService.selectBestServer(from: servers) else {
-            let error = NSError(domain: "AppCoordinator", code: 1, userInfo: [NSLocalizedDescriptionKey: "No servers available"])
-            completion(.failure(error))
-            return
+            throw NSError(domain: "AppCoordinator", code: 1, userInfo: [NSLocalizedDescriptionKey: "No servers available"])
         }
         
-        connectToServer(bestServer, completion: completion)
+        try await connectToServer(bestServer)
     }
     
-    func connectToServer(_ server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
-        connectionManager.connect(to: server) { result in
-            DispatchQueue.main.async {
-                completion(result)
-            }
-        }
+    func connectToServer(_ server: VPNServer) async throws {
+        try await connectionManager.connect(to: server)
     }
     
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
-        connectionManager.disconnect { result in
-            DispatchQueue.main.async {
-                completion(result)
-            }
-        }
+    func disconnect() async throws {
+        try await connectionManager.disconnect()
     }
     
     func getCurrentConnectionState() -> VPNConnectionState {

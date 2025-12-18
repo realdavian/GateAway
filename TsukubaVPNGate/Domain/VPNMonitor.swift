@@ -13,7 +13,6 @@ protocol VPNMonitorProtocol {
 
 // MARK: - VPN Monitor Implementation
 
-@MainActor
 final class VPNMonitor: VPNMonitorProtocol {
     
     // MARK: - Server Info Management

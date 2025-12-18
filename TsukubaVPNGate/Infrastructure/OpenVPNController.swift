@@ -87,71 +87,31 @@ final class OpenVPNController: VPNControlling {
     
     // MARK: - VPNControlling Protocol
     
-    func connect(server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
+    func connect(server: VPNServer) async throws {
         print("🔗 [OpenVPN] Connecting to \(server.countryLong) (\(server.hostName))")
         
         // 1. Pre-flight Permission Check
-        do {
-            try PermissionService.shared.checkOpenVPNPermission()
-        } catch {
-            print("❌ [OpenVPN] Permission check failed: \(error.localizedDescription)")
-            DispatchQueue.main.async {
-                completion(.failure(error))
-            }
-            return
-        }
+        try PermissionService.shared.checkOpenVPNPermission()
         
-        // Check if OpenVPN is installed (redundant with PermissionService but keeps specific error)
+        // 2. Check if OpenVPN is installed
         guard isInstalled() else {
-            DispatchQueue.main.async {
-                completion(.failure(OpenVPNError.notInstalled))
-            }
-            return
+            throw OpenVPNError.notInstalled
         }
         
-        // Create configuration file
-        do {
-            let configPath = try createConfiguration(for: server)
-            currentConfigPath = configPath
-            
-            // Start OpenVPN process
-            startOpenVPN(configPath: configPath) { [weak self] error in
-                guard let self = self else { return }
-                
-                if let error = error {
-                    print("❌ [OpenVPN] Failed to start: \(error.localizedDescription)")
-                    DispatchQueue.main.async {
-                        completion(.failure(error))
-                    }
-                    return
-                }
-                
-                // Process is now running! Wait for connection using async
-                print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
-                
-                Task {
-                    do {
-                        try await self.waitForConnection(server: server)
-                        
-                        DispatchQueue.main.async {
-                            completion(.success(()))
-                        }
-                    } catch {
-                        DispatchQueue.main.async {
-                            completion(.failure(error))
-                        }
-                    }
-                }
-            }
-
-            
-        } catch {
-            print("❌ [OpenVPN] Connection failed: \(error)")
-            DispatchQueue.main.async {
-                completion(.failure(error))
-            }
-        }
+        // 3. Create configuration file
+        let configPath = try createConfiguration(for: server)
+        currentConfigPath = configPath
+        
+        // 4. Start OpenVPN process
+        try await startOpenVPN(configPath: configPath)
+        
+        // 5. Wait for connection to establish
+        print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
+        try await waitForConnection(server: server)
+        
+        print("✅ [OpenVPN] Connection established successfully")
     }
+
 
     
     private func waitForConnection(server: VPNServer) async throws {
@@ -206,70 +166,63 @@ final class OpenVPNController: VPNControlling {
     }
 
     
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
+    func disconnect() async throws {
         print("🔌 [OpenVPN] Disconnecting...")
         
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
+        // Try management interface first (NO SUDO REQUIRED!)
+        if fileManager.fileExists(atPath: managementSocketPath) {
+            print("📡 [OpenVPN] Sending disconnect via management interface...")
             
-            // Try management interface first (NO SUDO REQUIRED!)
-            if self.fileManager.fileExists(atPath: self.managementSocketPath) {
-                print("📡 [OpenVPN] Sending disconnect via management interface...")
-                
-                if self.sendManagementCommand("signal SIGTERM") {
-                    print("✅ [OpenVPN] Graceful disconnect sent via management socket")
-                    Thread.sleep(forTimeInterval: 1.5) // Wait for graceful shutdown
-                } else {
-                    print("⚠️ [OpenVPN] Management socket failed, will try killall")
-                }
-            }
-            
-            // Check if there are still processes running
-            let processCount = self.getOpenVPNProcessCount()
-            if processCount > 0 {
-                print("⚠️ [OpenVPN] \(processCount) process(es) still running, using killall...")
-                
-                let killScript = """
-                do shell script "killall -9 openvpn 2>/dev/null || true" with administrator privileges
-                """
-                
-                var error: NSDictionary?
-                if let scriptObject = NSAppleScript(source: killScript) {
-                    let _ = scriptObject.executeAndReturnError(&error)
-                    if let error = error {
-                        print("⚠️ [OpenVPN] Kill script error: \(error)")
-                    } else {
-                        print("✅ [OpenVPN] All OpenVPN processes killed")
-                        Thread.sleep(forTimeInterval: 0.5)
-                    }
-                }
-            }
-            
-            // Stop monitoring before cleanup
-            print("📊 [OpenVPN] Stopping VPN monitoring...")
-            self.vpnMonitor.stopMonitoring()
-            
-            // Cleanup all config files and sockets
-            self.currentProcess = nil
-            try? self.fileManager.removeItem(atPath: self.pidFilePath)
-            try? self.fileManager.removeItem(atPath: self.managementSocketPath)
-            
-            // Clean up all .ovpn files in the directory
-            if let files = try? self.fileManager.contentsOfDirectory(atPath: self.configDirectory) {
-                for file in files where file.hasSuffix(".ovpn") {
-                    try? self.fileManager.removeItem(atPath: "\(self.configDirectory)/\(file)")
-                }
-            }
-            
-            self.currentConfigPath = nil
-            
-            print("✅ [OpenVPN] Disconnected successfully")
-            
-            DispatchQueue.main.async {
-                completion(.success(()))
+            if sendManagementCommand("signal SIGTERM") {
+                print("✅ [OpenVPN] Graceful disconnect sent via management socket")
+                try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            } else {
+                print("⚠️ [OpenVPN] Management socket failed, will try killall")
             }
         }
+        
+        // Check if there are still processes running
+        let processCount = getOpenVPNProcessCount()
+        if processCount > 0 {
+            print("⚠️ [OpenVPN] \(processCount) process(es) still running, using killall...")
+            
+            let killScript = """
+            do shell script "killall -9 openvpn 2>/dev/null || true" with administrator privileges
+            """
+            
+            var error: NSDictionary?
+            if let scriptObject = NSAppleScript(source: killScript) {
+                let _ = scriptObject.executeAndReturnError(&error)
+                if let error = error {
+                    print("⚠️ [OpenVPN] Kill script error: \(error)")
+                } else {
+                    print("✅ [OpenVPN] All OpenVPN processes killed")
+                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                }
+            }
+        }
+        
+        // Stop monitoring before cleanup
+        print("📊 [OpenVPN] Stopping VPN monitoring...")
+        vpnMonitor.stopMonitoring()
+        
+        // Cleanup all config files and sockets
+        currentProcess = nil
+        try? fileManager.removeItem(atPath: pidFilePath)
+        try? fileManager.removeItem(atPath: managementSocketPath)
+        
+        // Clean up all .ovpn files in the directory
+        if let files = try? fileManager.contentsOfDirectory(atPath: configDirectory) {
+            for file in files where file.hasSuffix(".ovpn") {
+                try? fileManager.removeItem(atPath: "\(configDirectory)/\(file)")
+            }
+        }
+        
+        currentConfigPath = nil
+        
+        print("✅ [OpenVPN] Disconnected successfully")
     }
+
     
     private func getOpenVPNProcessCount() -> Int {
         let task = Process()
@@ -391,43 +344,36 @@ final class OpenVPNController: VPNControlling {
         return configPath
     }
     
-    private func startOpenVPN(configPath: String, completion: @escaping (Error?) -> Void) {
+    private func startOpenVPN(configPath: String) async throws {
         // Try to get admin password from Keychain (triggers Touch ID if stored)
         if KeychainManager.shared.isPasswordStored() {
             print("🔐 [OpenVPN] Password found in Keychain, using Touch ID...")
             
-            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-                guard let self = self else {
-                    completion(OpenVPNError.connectionFailed("Controller deallocated"))
-                    return
-                }
+            do {
+                // This will trigger Touch ID prompt
+                let password = try KeychainManager.shared.getPassword()
+                print("✅ [OpenVPN] Retrieved password via Touch ID")
                 
-                do {
-                    // This will trigger Touch ID prompt
-                    let password = try KeychainManager.shared.getPassword()
-                    print("✅ [OpenVPN] Retrieved password via Touch ID")
-                    
-                    // Use password with osascript for non-interactive sudo
-                    self.startOpenVPNWithPassword(password, configPath: configPath, completion: completion)
-                    
-                } catch KeychainManager.KeychainError.authenticationCancelled {
-                    print("⚠️ [OpenVPN] User cancelled Touch ID")
-                    completion(OpenVPNError.connectionFailed("Touch ID authentication cancelled"))
-                    
-                } catch {
-                    print("⚠️ [OpenVPN] Keychain retrieval failed: \(error). Falling back to system prompt.")
-                    // Fall back to standard AppleScript prompt
-                    self.startOpenVPNWithAppleScript(configPath: configPath, completion: completion)
-                }
+                // Use password with osascript for non-interactive sudo
+                try await startOpenVPNWithPassword(password, configPath: configPath)
+                
+            } catch KeychainManager.KeychainError.authenticationCancelled {
+                print("⚠️ [OpenVPN] User cancelled Touch ID")
+                throw OpenVPNError.connectionFailed("Touch ID authentication cancelled")
+                
+            } catch {
+                print("⚠️ [OpenVPN] Keychain retrieval failed: \(error). Falling back to system prompt.")
+                // Fall back to standard AppleScript prompt
+                try await startOpenVPNWithAppleScript(configPath: configPath)
             }
         } else {
             print("🔐 [OpenVPN] No password in Keychain, using system auth prompt...")
             // No password stored, use standard AppleScript prompt
-            startOpenVPNWithAppleScript(configPath: configPath, completion:completion)
+            try await startOpenVPNWithAppleScript(configPath: configPath)
         }
     }
     
-    private func startOpenVPNWithPassword(_ password: String, configPath: String, completion: @escaping (Error?) -> Void) {
+    private func startOpenVPNWithPassword(_ password: String, configPath: String) async throws {
         // Use password via stdin for non-interactive sudo
         let command = """
         killall openvpn 2>/dev/null || true
@@ -446,18 +392,18 @@ final class OpenVPNController: VPNControlling {
             print("✅ [OpenVPN] Process started with Keychain password (no manual auth needed!)")
             
             // Wait a moment for process to initialize
-            Thread.sleep(forTimeInterval: 2.0)
+            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
             
             // Continue with standard process verification
-            self.verifyOpenVPNStarted(completion: completion)
+            try await verifyOpenVPNStarted()
             
         } catch {
             print("❌ [OpenVPN] Failed to start with password: \(error)")
-            completion(OpenVPNError.connectionFailed("Failed to start OpenVPN: \(error.localizedDescription)"))
+            throw OpenVPNError.connectionFailed("Failed to start OpenVPN: \(error.localizedDescription)")
         }
     }
     
-    private func startOpenVPNWithAppleScript(configPath: String, completion: @escaping (Error?) -> Void) {
+    private func startOpenVPNWithAppleScript(configPath: String) async throws {
         // SINGLE sudo call: kill any existing OpenVPN processes AND start new one
         // This prevents double password prompts!
         let script = """
@@ -468,77 +414,67 @@ final class OpenVPNController: VPNControlling {
         print("⏳ [OpenVPN] Waiting for user authentication...")
         
         guard let scriptObject = NSAppleScript(source: script) else {
-            completion(OpenVPNError.connectionFailed("Failed to create admin prompt script"))
-            return
+            throw OpenVPNError.connectionFailed("Failed to create admin prompt script")
         }
         
-        // Execute in background - use .default QoS to avoid priority inversion with AppleScript
-        DispatchQueue.global(qos: .default).async { [weak self] in
-            guard let self = self else { 
-                completion(OpenVPNError.connectionFailed("Controller deallocated"))
-                return 
+        var executionError: NSDictionary?
+        let _ = scriptObject.executeAndReturnError(&executionError)
+        
+        if let error = executionError {
+            let errorCode = error["NSAppleScriptErrorNumber"] as? Int ?? 0
+            let errorMessage = error["NSAppleScriptErrorBriefMessage"] as? String ?? "Unknown error"
+            print("❌ [OpenVPN] Admin script error (code: \(errorCode)): \(errorMessage)")
+            
+            if errorCode == -128 {
+                // User cancelled
+                throw OpenVPNError.connectionFailed("User cancelled authentication")
+            } else {
+                throw OpenVPNError.connectionFailed("Script execution failed: \(errorMessage)")
             }
-            
-            var executionError: NSDictionary?
-            let _ = scriptObject.executeAndReturnError(&executionError)
-            
-            if let error = executionError {
-                let errorCode = error["NSAppleScriptErrorNumber"] as? Int ?? 0
-                let errorMessage = error["NSAppleScriptErrorBriefMessage"] as? String ?? "Unknown error"
-                print("❌ [OpenVPN] Admin script error (code: \(errorCode)): \(errorMessage)")
-                
-                if errorCode == -128 {
-                    // User cancelled
-                    completion(OpenVPNError.connectionFailed("User cancelled authentication"))
-                } else {
-                    completion(OpenVPNError.connectionFailed("Script execution failed: \(errorMessage)"))
-                }
-                return
-            }
-            
-            print("✅ [OpenVPN] AppleScript completed - process should be starting")
-            
-            // Wait a moment for process to initialize
-            Thread.sleep(forTimeInterval: 2.0)
-            
-            // Continue with standard verification
-            self.verifyOpenVPNStarted(completion: completion)
         }
+        
+        print("✅ [OpenVPN] AppleScript completed - process should be starting")
+        
+        // Wait a moment for process to initialize
+        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        
+        // Continue with standard verification
+        try await verifyOpenVPNStarted()
     }
     
-    private func verifyOpenVPNStarted(completion: @escaping (Error?) -> Void) {
+    private func verifyOpenVPNStarted() async throws {
         // Check if process actually started
-        if self.isOpenVPNRunning() {
+        if isOpenVPNRunning() {
             print("✅ [OpenVPN] Process confirmed running")
             
             // Wait for management socket
             var socketWait = 0
-            while socketWait < 5 && !self.fileManager.fileExists(atPath: self.managementSocketPath) {
-                Thread.sleep(forTimeInterval: 0.5)
+            while socketWait < 5 && !fileManager.fileExists(atPath: managementSocketPath) {
+                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
                 socketWait += 1
             }
             
-            if self.fileManager.fileExists(atPath: self.managementSocketPath) {
+            if fileManager.fileExists(atPath: managementSocketPath) {
                 print("✅ [OpenVPN] Management socket ready")
-                self.connectToManagementInterface()
+                connectToManagementInterface()
                 
                 // Start monitoring after successful connection
                 print("📊 [OpenVPN] Starting VPN monitoring...")
-                self.vpnMonitor.startMonitoring()
+                vpnMonitor.startMonitoring()
                 
-                completion(nil) // Success!
+                // Success!
             } else {
                 print("⚠️ [OpenVPN] Management socket not created")
-                completion(OpenVPNError.connectionFailed("Management socket not available"))
+                throw OpenVPNError.connectionFailed("Management socket not available")
             }
         } else {
             print("❌ [OpenVPN] Process failed to start")
             // Try to get error from log
-            if let logContent = try? String(contentsOfFile: self.logFilePath, encoding: .utf8) {
+            if let logContent = try? String(contentsOfFile: logFilePath, encoding: .utf8) {
                 let lastLines = logContent.components(separatedBy: "\n").suffix(3).joined(separator: " | ")
                 print("📋 [OpenVPN] Log: \(lastLines)")
             }
-            completion(OpenVPNError.connectionFailed("Process failed to start"))
+            throw OpenVPNError.connectionFailed("Process failed to start")
         }
     }
     

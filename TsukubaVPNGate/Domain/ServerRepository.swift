@@ -3,7 +3,6 @@ import Foundation
 // MARK: - Protocol (DIP: Depend on abstractions)
 
 protocol ServerRepositoryProtocol {
-    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void)
     func fetchServers() async throws -> [VPNServer]
     func getCachedServers() -> [VPNServer]
     func getLastRefreshDate() -> Date?
@@ -29,19 +28,6 @@ final class ServerRepository: ServerRepositoryProtocol {
         self.cachedServers = servers
         self.lastRefresh = Date()
         return servers
-    }
-    
-    // MARK: - Legacy Completion API (for backward compatibility)
-    
-    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void) {
-        Task {
-            do {
-                let servers = try await fetchServers()
-                completion(.success(servers))
-            } catch {
-                completion(.failure(error))
-            }
-        }
     }
     
     func getCachedServers() -> [VPNServer] {

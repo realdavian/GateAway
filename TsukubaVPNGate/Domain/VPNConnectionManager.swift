@@ -26,8 +26,8 @@ extension VPNConnectionState {
 
 protocol VPNConnectionManagerProtocol {
     var currentState: VPNConnectionState { get }
-    func connect(to server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void)
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
+    func connect(to server: VPNServer) async throws
+    func disconnect() async throws
 }
 
 // MARK: - Implementation (SRP: Single responsibility - VPN lifecycle management)
@@ -49,49 +49,54 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
         print("🎯 [VPNConnectionManager] Initialized with \(backend.displayName) backend")
     }
     
-    func connect(to server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
+    func connect(to server: VPNServer) async throws {
         print("🔗 [VPNConnectionManager] Connecting to: \(server.countryLong)")
-        currentState = .connecting(server)
         
-        controller.connect(server: server) { [weak self] result in
-            guard let self = self else { return }
+        await MainActor.run {
+            currentState = .connecting(server)
+        }
+        
+        do {
+            // Heavy work runs on background thread - doesn't block UI!
+            try await controller.connect(server: server)
+            print("✅ [VPNConnectionManager] Connected successfully")
             
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    print("✅ [VPNConnectionManager] Connected successfully")
-                    self.currentState = .connected(server)
-                    completion(.success(()))
-                    
-                case .failure(let error):
-                    print("❌ [VPNConnectionManager] Connection failed: \(error.localizedDescription)")
-                    self.currentState = .error(error.localizedDescription)
-                    completion(.failure(error))
-                }
+            await MainActor.run {
+                currentState = .connected(server)
             }
+        } catch {
+            print("❌ [VPNConnectionManager] Connection failed: \(error.localizedDescription)")
+            
+            await MainActor.run {
+                currentState = .error(error.localizedDescription)
+            }
+            throw error
         }
     }
     
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
+    
+    func disconnect() async throws {
         print("🔌 [VPNConnectionManager] Disconnecting...")
-        currentState = .disconnecting
         
-        controller.disconnect { [weak self] result in
-            guard let self = self else { return }
+        await MainActor.run {
+            currentState = .disconnecting
+        }
+        
+        do {
+            // Heavy work on background thread
+            try await controller.disconnect()
+            print("✅ [VPNConnectionManager] Disconnected successfully")
             
-            DispatchQueue.main.async {
-                switch result {
-                case .success:
-                    print("✅ [VPNConnectionManager] Disconnected successfully")
-                    self.currentState = .disconnected
-                    completion(.success(()))
-                    
-                case .failure(let error):
-                    print("❌ [VPNConnectionManager] Disconnect failed: \(error.localizedDescription)")
-                    self.currentState = .error(error.localizedDescription)
-                    completion(.failure(error))
-                }
+            await MainActor.run {
+                currentState = .disconnected
             }
+        } catch {
+            print("❌ [VPNConnectionManager] Disconnect failed: \(error.localizedDescription)")
+            
+            await MainActor.run {
+                currentState = .error(error.localizedDescription)
+            }
+            throw error
         }
     }
 }

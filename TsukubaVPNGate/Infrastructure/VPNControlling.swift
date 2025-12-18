@@ -18,14 +18,13 @@ import Foundation
 /// - IKEv2Controller
 protocol VPNControlling {
     /// Establishes a VPN connection to the specified server
-    /// - Parameters:
-    ///   - server: The VPN server to connect to
-    ///   - completion: Callback with success or error result (called on main thread)
-    func connect(server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void)
+    /// - Parameter server: The VPN server to connect to
+    /// - Throws: VPNControllerError on failure
+    func connect(server: VPNServer) async throws
     
     /// Terminates the current VPN connection
-    /// - Parameter completion: Callback with success or error result (called on main thread)
-    func disconnect(completion: @escaping (Result<Void, Error>) -> Void)
+    /// - Throws: VPNControllerError on failure
+    func disconnect() async throws
     
     /// Returns a human-readable name for this VPN backend
     /// Examples: "OpenVPN CLI", "WireGuard", "IKEv2"

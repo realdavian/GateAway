@@ -2,6 +2,7 @@ import AppKit
 
 // MARK: - App Delegate (Presentation Layer - SRP: App lifecycle & dependency injection)
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Single Instances (Composition Root)
     private let monitoringStore = MonitoringStore()
@@ -64,10 +65,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func switchVPNBackend(to newBackend: UserPreferences.VPNProvider) {
         print("🔄 [AppDelegate] Switching VPN backend to: \(newBackend.displayName)")
         
+        
         // Disconnect current VPN if connected
-        connectionManager?.disconnect { [weak self] _ in
-            DispatchQueue.main.async {
-                self?.setupVPNBackend()
+        Task {
+            do {
+                try await connectionManager?.disconnect()
+                await MainActor.run {
+                    self.setupVPNBackend()
+                }
+            } catch {
+                print("⚠️ [AppDelegate] Failed to disconnect: \(error)")
+                await MainActor.run {
+                    self.setupVPNBackend()
+                }
             }
         }
     }
@@ -119,12 +129,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // Initial server list refresh
             print("🚀 [AppDelegate] Starting initial server refresh...")
-            coordinator.refreshServerList { [weak controller] result in
-                switch result {
-                case .success:
+            Task {
+                do {
+                    try await coordinator.refreshServerList()
                     print("✅ [AppDelegate] Initial refresh succeeded, rebuilding menu...")
-                    controller?.rebuildMenu()
-                case .failure(let error):
+                    await MainActor.run {
+                        controller.rebuildMenu()
+                    }
+                } catch {
                     print("⚠️ [AppDelegate] Initial server refresh failed: \(error.localizedDescription)")
                 }
             }
@@ -134,17 +146,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             
             // Refresh server list for updated coordinator
             print("🚀 [AppDelegate] Refreshing server list after backend switch...")
-            coordinator.refreshServerList { [weak self] result in
-                switch result {
-                case .success:
+            Task {
+                do {
+                    try await coordinator.refreshServerList()
                     print("✅ [AppDelegate] Refresh succeeded")
-                    self?.statusBarController?.rebuildMenu()
-                case .failure(let error):
+                    await MainActor.run {
+                        self.statusBarController?.rebuildMenu()
+                    }
+                } catch {
                     print("⚠️ [AppDelegate] Refresh failed: \(error.localizedDescription)")
                 }
             }
         }
-        
         // Monitor connection state changes and update UI
         // (Must be outside if/else to work on both first init and backend switch)
         connectionManager.onStateChange = { [weak self] newState in

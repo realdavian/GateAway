@@ -3,7 +3,6 @@ import Foundation
 // MARK: - Protocol (DIP: Depend on abstractions)
 
 protocol VPNGateAPIProtocol {
-    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void)
     func fetchServers() async throws -> [VPNServer]
 }
 
@@ -50,19 +49,6 @@ final class VPNGateAPI: VPNGateAPIProtocol {
         let servers = try Self.parseCSV(text)
         print("✅ VPNGateAPI: Parsed \(servers.count) servers")
         return servers
-    }
-    
-    // MARK: - Legacy Completion API (for backward compatibility)
-    
-    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void) {
-        Task {
-            do {
-                let servers = try await fetchServers()
-                completion(.success(servers))
-            } catch {
-                completion(.failure(error))
-            }
-        }
     }
     
     // MARK: - Private CSV Parser

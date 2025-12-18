@@ -16,12 +16,34 @@ final class CoordinatorWrapper: ObservableObject {
     
     func connect(to server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
         print("🚀 [CoordinatorWrapper] Connecting to server: \(server)")
-        coordinator.connectToServer(server, completion: completion)
+        Task {
+            do {
+                try await coordinator.connectToServer(server)
+                await MainActor.run {
+                    completion(.success(()))
+                }
+            } catch {
+                await MainActor.run {
+                    completion(.failure(error))
+                }
+            }
+        }
     }
     
     func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
         print("🚀 [CoordinatorWrapper] Disconnecting from server")
-        coordinator.disconnect(completion: completion)
+        Task {
+            do {
+                try await coordinator.disconnect()
+                await MainActor.run {
+                    completion(.success(()))
+                }
+            } catch {
+                await MainActor.run {
+                    completion(.failure(error))
+                }
+            }
+        }
     }
     
     // MARK: - State Access
