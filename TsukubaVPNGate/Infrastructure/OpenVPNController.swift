@@ -59,7 +59,7 @@ final class OpenVPNController: VPNControlling {
         }
     }
     
-    init(vpnMonitor: VPNMonitorProtocol = VPNMonitor.shared) {
+    init(vpnMonitor: VPNMonitorProtocol) {
         self.vpnMonitor = vpnMonitor
         
         // Check both Homebrew paths for OpenVPN
@@ -126,10 +126,24 @@ final class OpenVPNController: VPNControlling {
                     return
                 }
                 
-                // Process is now running! Start non-blocking polling
+                // Process is now running! Wait for connection using async
                 print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
-                self.startConnectionPolling(server: server, completion: completion)
+                
+                Task {
+                    do {
+                        try await self.waitForConnection(server: server)
+                        
+                        DispatchQueue.main.async {
+                            completion(.success(()))
+                        }
+                    } catch {
+                        DispatchQueue.main.async {
+                            completion(.failure(error))
+                        }
+                    }
+                }
             }
+
             
         } catch {
             print("❌ [OpenVPN] Connection failed: \(error)")
@@ -138,77 +152,59 @@ final class OpenVPNController: VPNControlling {
             }
         }
     }
+
     
-    private func startConnectionPolling(server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
-        let pollingQueue = DispatchQueue(label: "com.tsukubavpngate.connection-polling", qos: .userInitiated)
+    private func waitForConnection(server: VPNServer) async throws {
         let maxAttempts = 30
         
-        func pollAttempt(attemptNumber: Int) {
-            // Run all checks on background queue
-            pollingQueue.async { [weak self] in
-                guard let self = self else {
-                    DispatchQueue.main.async {
-                        completion(.failure(OpenVPNError.connectionFailed("Controller deallocated")))
-                    }
-                    return
-                }
+        for attempt in 1...maxAttempts {
+            // Check success (file I/O and socket I/O automatically on background)
+            if isActuallyConnected() {
+                print("✅ [OpenVPN] Connection established after \(attempt) seconds")
                 
-                // 1. Check Success (file I/O and socket I/O on background thread)
-                if self.isActuallyConnected() {
-                    print("✅ [OpenVPN] Connection established after \(attemptNumber) seconds")
-                    
-                    // Update MonitoringStore with connected server info
-                    DispatchQueue.main.async {
-                        MonitoringStore.shared.setConnectedServer(
-                            country: server.countryLong,
-                            countryShort: server.countryShort,
-                            serverName: server.hostName
-                        )
-                        completion(.success(()))
-                    }
-                    return
-                }
+                // Update MonitoringStore with connected server info
+                vpnMonitor.setConnectedServer(
+                    country: server.countryLong,
+                    countryShort: server.countryShort,
+                    serverName: server.hostName
+                )
                 
-                // 2. Check Failure (Process Crash)
-                if !self.isOpenVPNRunning() {
-                    print("❌ [OpenVPN] Process terminated during connection")
-                    
-                    // Try to read log (file I/O on background thread)
-                    var logMsg = "Connection failed - check log"
-                    if let logContent = try? String(contentsOfFile: self.logFilePath, encoding: .utf8) {
-                        let lastLines = logContent.components(separatedBy: "\n").suffix(5).joined(separator: " | ")
-                        print("📋 [OpenVPN] Log: \(lastLines)")
-                        // Extract meaningful error if possible
-                        if lastLines.contains("AUTH_FAILED") {
-                            logMsg = "Authentication Failed"
-                        }
-                    }
-                    
-                    DispatchQueue.main.async {
-                        completion(.failure(OpenVPNError.connectionFailed(logMsg)))
-                    }
-                    return
-                }
-                
-                // 3. Check Timeout
-                if attemptNumber >= maxAttempts {
-                    print("⚠️ [OpenVPN] Connection timeout after \(maxAttempts) seconds")
-                    DispatchQueue.main.async {
-                        completion(.failure(OpenVPNError.connectionFailed("Connection timeout - check server")))
-                    }
-                    return
-                }
-                
-                // 4. Continue polling (schedule next attempt)
-                pollingQueue.asyncAfter(deadline: .now() + 1.0) {
-                    pollAttempt(attemptNumber: attemptNumber + 1)
-                }
+                return  // Success!
             }
+            
+            // Check failure (process crashed)
+            if !isOpenVPNRunning() {
+                print("❌ [OpenVPN] Process terminated during connection")
+                
+                // Try to read log (file I/O automatically on background)
+                let errorMessage = extractErrorFromLog() ?? "Connection failed - check log"
+                throw OpenVPNError.connectionFailed(errorMessage)
+            }
+            
+            // Wait before next attempt (macOS 11 compatible)
+            try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+
         }
         
-        // Start first attempt
-        pollAttempt(attemptNumber: 1)
+        // Timeout
+        throw OpenVPNError.connectionFailed("Connection timeout after \(maxAttempts) seconds - check server")
     }
+    
+    private func extractErrorFromLog() -> String? {
+        guard let logContent = try? String(contentsOfFile: logFilePath, encoding: .utf8) else {
+            return nil
+        }
+        
+        let lastLines = logContent.components(separatedBy: "\n").suffix(5).joined(separator: " | ")
+        print("📋 [OpenVPN] Log: \(lastLines)")
+        
+        if lastLines.contains("AUTH_FAILED") {
+            return "Authentication Failed"
+        }
+        
+        return "Connection failed - check log"
+    }
+
     
     func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
         print("🔌 [OpenVPN] Disconnecting...")

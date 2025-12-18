@@ -4,14 +4,14 @@ import SwiftUI
 
 struct OverviewTab: View {
     @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
+    @EnvironmentObject var monitoringStore: MonitoringStore
     
     @State private var isOpenVPNInstalled: Bool = false
     @State private var openVPNVersion: String = ""
     @State private var isDisconnecting: Bool = false
-    @ObservedObject private var store = MonitoringStore.shared
     
     private var vpnStatistics: VPNStatistics {
-        store.vpnStatistics
+        monitoringStore.vpnStatistics
     }
     
     var body: some View {

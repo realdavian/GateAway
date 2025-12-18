@@ -3,6 +3,12 @@ import AppKit
 // MARK: - App Delegate (Presentation Layer - SRP: App lifecycle & dependency injection)
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    // MARK: - Single Instances (Composition Root)
+    private let monitoringStore = MonitoringStore()
+    private let serverStore = ServerStore()
+    private lazy var vpnMonitor = VPNMonitor(monitoringStore: monitoringStore)
+    
+    // MARK: - UI Components
     private var statusBarController: StatusBarController?
     private var coordinator: AppCoordinator?
     private var connectionManager: VPNConnectionManager?
@@ -26,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         setupVPNBackend()
         
         // Pre-fetch server list for instant availability
-        Task { ServerStore.shared.warmupCache() }
+        Task { serverStore.warmupCache() }
         
         // Listen for backend switch notifications from Settings
         NotificationCenter.default.addObserver(
@@ -80,7 +86,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.currentBackend = preferences.vpnProvider
         
         // Create OpenVPN controller (only supported backend)
-        let vpnController: VPNControlling = OpenVPNController()
+        let vpnController: VPNControlling = OpenVPNController(vpnMonitor: vpnMonitor)
         print("🔧 [AppDelegate] Using OpenVPN CLI backend")
         
         let connectionManager = VPNConnectionManager(
@@ -103,7 +109,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         // Create or update UI
         if statusBarController == nil {
-            let controller = StatusBarController(coordinator: coordinator)
+            let controller = StatusBarController(
+                coordinator: coordinator,
+                monitoringStore: monitoringStore,
+                serverStore: serverStore,
+                vpnMonitor: vpnMonitor
+            )
             self.statusBarController = controller
             
             // Initial server list refresh
@@ -144,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 // Immediately refresh stats to update UI
                 // Note: Settings tabs manage VPNMonitor.startMonitoring() via onAppear/onDisappear
                 // We don't start/stop here to avoid ref count conflicts
-                VPNMonitor.shared.refreshStats()
+                self?.vpnMonitor.refreshStats()
             }
         }
     }

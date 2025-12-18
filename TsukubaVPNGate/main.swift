@@ -5,8 +5,11 @@ import AppKit
 
 autoreleasepool {
     let app = NSApplication.shared
-    let delegate = AppDelegate()
-    app.delegate = delegate
+    // AppDelegate needs to be created on main actor
+    MainActor.assumeIsolated {
+        let delegate = AppDelegate()
+        app.delegate = delegate
+    }
     _ = NSApplicationMain(CommandLine.argc, CommandLine.unsafeArgv)
 }
 

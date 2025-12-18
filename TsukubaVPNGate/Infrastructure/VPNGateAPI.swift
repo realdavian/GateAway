@@ -4,6 +4,7 @@ import Foundation
 
 protocol VPNGateAPIProtocol {
     func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void)
+    func fetchServers() async throws -> [VPNServer]
 }
 
 // MARK: - Domain Model
@@ -30,44 +31,38 @@ struct VPNServer: Identifiable, Hashable, Codable {
 final class VPNGateAPI: VPNGateAPIProtocol {
     private let endpoint = URL(string: "https://www.vpngate.net/api/iphone/")!
     
-    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void) {
-        print("🌐 VPNGateAPI: Fetching from \(endpoint)")
+    // MARK: - Async/Await API (Modern)
+    
+    func fetchServers() async throws -> [VPNServer] {
+        print("🌐 VPNGateAPI: Fetching from \(endpoint) (async)")
+        
         var request = URLRequest(url: endpoint)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 20
         
-        URLSession.shared.dataTask(with: request) { data, _, error in
-            if let error {
-                print("❌ VPNGateAPI: Network error: \(error.localizedDescription)")
-                completion(.failure(error))
-                return
-            }
-            
-            guard let data else {
-                print("❌ VPNGateAPI: No data received")
-                let error = NSError(domain: "VPNGateAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "No data received"])
-                completion(.failure(error))
-                return
-            }
-            
-            print("📦 VPNGateAPI: Received \(data.count) bytes")
-            
-            guard let text = String(data: data, encoding: .utf8) else {
-                print("❌ VPNGateAPI: Failed to decode as UTF-8")
-                let error = NSError(domain: "VPNGateAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response encoding"])
-                completion(.failure(error))
-                return
-            }
-            
+        let (data, _) = try await URLSession.shared.data(for: request)
+        print("📦 VPNGateAPI: Received \(data.count) bytes")
+        
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: "VPNGateAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response encoding"])
+        }
+        
+        let servers = try Self.parseCSV(text)
+        print("✅ VPNGateAPI: Parsed \(servers.count) servers")
+        return servers
+    }
+    
+    // MARK: - Legacy Completion API (for backward compatibility)
+    
+    func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void) {
+        Task {
             do {
-                let servers = try Self.parseCSV(text)
-                print("✅ VPNGateAPI: Parsed \(servers.count) servers")
+                let servers = try await fetchServers()
                 completion(.success(servers))
             } catch {
-                print("❌ VPNGateAPI: Parse error: \(error.localizedDescription)")
                 completion(.failure(error))
             }
-        }.resume()
+        }
     }
     
     // MARK: - Private CSV Parser

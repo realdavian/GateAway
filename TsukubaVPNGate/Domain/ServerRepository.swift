@@ -4,6 +4,7 @@ import Foundation
 
 protocol ServerRepositoryProtocol {
     func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void)
+    func fetchServers() async throws -> [VPNServer]
     func getCachedServers() -> [VPNServer]
     func getLastRefreshDate() -> Date?
 }
@@ -19,20 +20,25 @@ final class ServerRepository: ServerRepositoryProtocol {
         self.api = api
     }
     
+    // MARK: - Async/Await API (Modern)
+    
+    func fetchServers() async throws -> [VPNServer] {
+        print("📡 ServerRepository: Starting server fetch (async)...")
+        let servers = try await api.fetchServers()
+        print("✅ ServerRepository: Fetched \(servers.count) servers")
+        self.cachedServers = servers
+        self.lastRefresh = Date()
+        return servers
+    }
+    
+    // MARK: - Legacy Completion API (for backward compatibility)
+    
     func fetchServers(completion: @escaping (Result<[VPNServer], Error>) -> Void) {
-        print("📡 ServerRepository: Starting server fetch...")
-        api.fetchServers { [weak self] result in
-            guard let self = self else { return }
-            
-            switch result {
-            case .success(let servers):
-                print("✅ ServerRepository: Fetched \(servers.count) servers")
-                self.cachedServers = servers
-                self.lastRefresh = Date()
+        Task {
+            do {
+                let servers = try await fetchServers()
                 completion(.success(servers))
-                
-            case .failure(let error):
-                print("❌ ServerRepository: Fetch failed: \(error.localizedDescription)")
+            } catch {
                 completion(.failure(error))
             }
         }

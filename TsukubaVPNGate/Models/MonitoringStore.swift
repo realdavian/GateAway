@@ -6,9 +6,6 @@ import Combine
 @MainActor
 final class MonitoringStore: ObservableObject {
     
-    // MARK: - Shared Instance
-    static let shared = MonitoringStore()
-    
     // MARK: - Published Properties
     @Published var vpnStatistics: VPNStatistics = .empty
     
@@ -17,9 +14,10 @@ final class MonitoringStore: ObservableObject {
         vpnStatistics.connectionState
     }
     
-    private init() {
+    init() {
         print("🏗️ [MonitoringStore] Initialized")
     }
+
     
     // MARK: - Update Methods
     

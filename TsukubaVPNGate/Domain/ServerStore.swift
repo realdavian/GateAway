@@ -5,9 +5,6 @@ import Combine
 @MainActor
 final class ServerStore: ObservableObject {
     
-    // MARK: - Singleton
-    static let shared = ServerStore()
-    
     // MARK: - Published State
     @Published private(set) var servers: [VPNServer] = []
     @Published private(set) var isLoading: Bool = false
@@ -28,6 +25,7 @@ final class ServerStore: ObservableObject {
             print("📦 [ServerStore] Initialized with \(cachedServers.count) cached servers")
         }
     }
+
     
     // MARK: - Public Methods
     

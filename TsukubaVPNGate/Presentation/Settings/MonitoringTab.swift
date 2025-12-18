@@ -4,12 +4,12 @@ import SwiftUI
 
 struct MonitoringTab: View {
     @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
+    @EnvironmentObject var monitoringStore: MonitoringStore
     
     @State private var isDisconnecting: Bool = false
-    @ObservedObject private var store = MonitoringStore.shared
 
     private var vpnStatistics: VPNStatistics {
-        store.vpnStatistics
+        monitoringStore.vpnStatistics
     }
 
     private var connectedSinceString: String? {

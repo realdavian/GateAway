@@ -231,7 +231,8 @@ struct BlacklistRow: View {
 
 struct AddToBlacklistView: View {
     @Environment(\.presentationMode) var presentationMode
-    @ObservedObject private var serverStore = ServerStore.shared
+    @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
+    @EnvironmentObject var serverStore: ServerStore
     
     @State private var selectedServerId: String = ""
     @State private var reason: String = ""

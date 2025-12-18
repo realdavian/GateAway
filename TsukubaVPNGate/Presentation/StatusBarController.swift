@@ -5,17 +5,26 @@ import Combine
 
 final class StatusBarController: NSObject {
     private var coordinator: AppCoordinatorProtocol
+    private let monitoringStore: MonitoringStore
+    private let serverStore: ServerStore
+    private let vpnMonitor: VPNMonitor
     private let statusItem: NSStatusItem
     private var settingsWindow: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
     
-    var hasVisibleStatusItem: Bool {
+   var hasVisibleStatusItem: Bool {
         guard let button = statusItem.button else { return false }
         return !button.title.isEmpty || button.image != nil
     }
     
-    init(coordinator: AppCoordinatorProtocol) {
+    init(coordinator: AppCoordinatorProtocol,
+         monitoringStore: MonitoringStore,
+         serverStore: ServerStore,
+         vpnMonitor: VPNMonitor) {
         self.coordinator = coordinator
+        self.monitoringStore = monitoringStore
+        self.serverStore = serverStore
+        self.vpnMonitor = vpnMonitor
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         
@@ -28,7 +37,7 @@ final class StatusBarController: NSObject {
         
         // Subscribe to MonitoringStore for real-time icon updates
         print("🎯 [StatusBarController] Subscribing to MonitoringStore")
-        MonitoringStore.shared.$vpnStatistics
+        monitoringStore.$vpnStatistics
             .receive(on: DispatchQueue.main)
             .sink { [weak self] stats in
                 print("🎯 [StatusBarController] Received update: \(stats.connectionState)")
@@ -53,7 +62,7 @@ final class StatusBarController: NSObject {
         guard let button = statusItem.button else { return }
         
         // Use provided store state, or fall back to store's current state
-        let state = storeState ?? MonitoringStore.shared.connectionState
+        let state = storeState ?? monitoringStore.connectionState
         
         // Choose icon based on connection state
         let (iconName, isTemplate) = iconForStatisticsState(state)
@@ -267,7 +276,11 @@ final class StatusBarController: NSObject {
     
     @objc private func onSettings() {
         if settingsWindow == nil {
-            settingsWindow = SettingsWindowController(coordinator: coordinator)
+            settingsWindow = SettingsWindowController(
+                coordinator: coordinator,
+                monitoringStore: monitoringStore,
+                serverStore: serverStore
+            )
         }
         settingsWindow?.show()
         NSApp.activate(ignoringOtherApps: true)

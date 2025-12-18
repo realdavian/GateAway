@@ -4,8 +4,8 @@ import SwiftUI
 
 struct ServersTab: View {
     @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
-    @ObservedObject private var store = MonitoringStore.shared
-    @ObservedObject private var serverStore = ServerStore.shared
+    @EnvironmentObject var monitoringStore: MonitoringStore
+    @EnvironmentObject var serverStore: ServerStore
     
     @State private var filteredServers: [VPNServer] = []
     @State private var searchText: String = ""
@@ -16,18 +16,18 @@ struct ServersTab: View {
     
     // Computed property to get connected server info
     private var connectedServerIP: String? {
-        guard case .connected = store.vpnStatistics.connectionState else {
+        guard case .connected = monitoringStore.vpnStatistics.connectionState else {
             return nil
         }
-        return store.vpnStatistics.vpnIP
+        return monitoringStore.vpnStatistics.vpnIP
     }
     
     private var connectedServerName: String? {
-        store.vpnStatistics.connectedServerName
+        monitoringStore.vpnStatistics.connectedServerName
     }
     
     private var isConnected: Bool {
-        if case .connected = store.vpnStatistics.connectionState {
+        if case .connected = monitoringStore.vpnStatistics.connectionState {
             return true
         }
         return false
@@ -195,8 +195,8 @@ struct ServersTab: View {
                                 // Check if this server is the connected one
                                 // Compare hostnames since that's what's stored in MonitoringStore
                                 let isServerConnected: Bool = {
-                                    let connectionState = store.vpnStatistics.connectionState
-                                    let connectedName = store.vpnStatistics.connectedServerName
+                                    let connectionState = monitoringStore.vpnStatistics.connectionState
+                                    let connectedName = monitoringStore.vpnStatistics.connectedServerName
                                     
                                     guard case .connected = connectionState,
                                           let connectedServerName = connectedName else {
@@ -245,7 +245,7 @@ struct ServersTab: View {
             .onChange(of: serverStore.servers) { _ in
                 filterAndSortServers()
             }
-            .onChange(of: store.vpnStatistics.connectedServerName) { newName in
+            .onChange(of: monitoringStore.vpnStatistics.connectedServerName) { newName in
                 print("🔄 [ServersTab] Connected server name changed to: \(newName ?? "nil")")
                 // Force view refresh by triggering any state change
                 // This ensures the ForEach re-evaluates isServerConnected
@@ -347,7 +347,7 @@ struct ServersTab: View {
             
             // Store server info in MonitoringStore BEFORE connecting
             // This ensures UI can track which server we're connecting to
-            MonitoringStore.shared.setConnectedServer(
+            monitoringStore.setConnectedServer(
                 country: server.countryLong,
                 countryShort: server.countryShort,
                 serverName: server.hostName
@@ -363,7 +363,7 @@ struct ServersTab: View {
                         
                     case .failure(let error):
                         // Clear the server info if connection failed
-                        MonitoringStore.shared.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
+                        monitoringStore.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
                         activeAlert = .error(error.localizedDescription)
                     }
                 }
