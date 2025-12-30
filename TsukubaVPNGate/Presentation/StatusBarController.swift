@@ -136,13 +136,24 @@ final class StatusBarController: NSObject {
         refreshItem.target = self
         menu.addItem(refreshItem)
         
-        let connectBestItem = NSMenuItem(title: "Connect (Best)", action: #selector(onConnectBest), keyEquivalent: "")
-        connectBestItem.target = self
-        menu.addItem(connectBestItem)
+        // Dynamic connection button (changes based on state)
+        let state = coordinator.getCurrentConnectionState()
+        let connectionItem: NSMenuItem
         
-        let disconnectItem = NSMenuItem(title: "Disconnect", action: #selector(onDisconnect), keyEquivalent: "")
-        disconnectItem.target = self
-        menu.addItem(disconnectItem)
+        switch state {
+        case .disconnected, .error:
+            connectionItem = NSMenuItem(title: "Connect (Best)", action: #selector(onConnectBest), keyEquivalent: "")
+        case .connecting:
+            connectionItem = NSMenuItem(title: "⏹ Stop Connecting", action: #selector(onCancelConnection), keyEquivalent: "")
+        case .connected:
+            connectionItem = NSMenuItem(title: "Disconnect", action: #selector(onDisconnect), keyEquivalent: "")
+        case .disconnecting:
+            connectionItem = NSMenuItem(title: "Disconnecting...", action: nil, keyEquivalent: "")
+            connectionItem.isEnabled = false
+        }
+        
+        connectionItem.target = self
+        menu.addItem(connectionItem)
         
         menu.addItem(.separator())
         
@@ -286,6 +297,15 @@ final class StatusBarController: NSObject {
                     self?.showError(title: "Disconnection Failed", message: error.localizedDescription)
                     self?.rebuildMenu()
                 }
+            }
+        }
+    }
+    
+    @objc private func onCancelConnection() {
+        Task {
+            await coordinator.cancelConnection()
+            await MainActor.run {
+                self.rebuildMenu()
             }
         }
     }

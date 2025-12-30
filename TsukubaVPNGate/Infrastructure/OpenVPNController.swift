@@ -87,6 +87,13 @@ final class OpenVPNController: VPNControlling {
     
     // MARK: - VPNControlling Protocol
     
+    /// Connect with automatic retry for better reliability
+    func connectWithRetry(server: VPNServer, policy: RetryPolicy = .default) async throws {
+        try await policy.execute {
+            try await self.connect(server: server)
+        }
+    }
+    
     func connect(server: VPNServer) async throws {
         print("🔗 [OpenVPN] Connecting to \(server.countryLong) (\(server.hostName))")
         
@@ -165,6 +172,15 @@ final class OpenVPNController: VPNControlling {
         return "Connection failed - check log"
     }
 
+    
+    /// Cancel an in-progress connection attempt
+    func cancelConnection() {
+        print("🛑 [OpenVPN] Cancelling connection...")
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
+        process.arguments = ["openvpn"]
+        try? process.run()
+    }
     
     func disconnect() async throws {
         print("🔌 [OpenVPN] Disconnecting...")
@@ -351,7 +367,7 @@ final class OpenVPNController: VPNControlling {
             
             do {
                 // This will trigger Touch ID prompt
-                let password = try KeychainManager.shared.getPassword()
+                let password = try await KeychainManager.shared.getPassword()
                 print("✅ [OpenVPN] Retrieved password via Touch ID")
                 
                 // Use password with osascript for non-interactive sudo

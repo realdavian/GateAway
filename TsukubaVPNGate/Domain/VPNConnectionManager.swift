@@ -26,8 +26,9 @@ extension VPNConnectionState {
 
 protocol VPNConnectionManagerProtocol {
     var currentState: VPNConnectionState { get }
-    func connect(to server: VPNServer) async throws
+    func connect(to server: VPNServer, enableRetry: Bool) async throws
     func disconnect() async throws
+    func cancelConnection() async
 }
 
 // MARK: - Implementation (SRP: Single responsibility - VPN lifecycle management)
@@ -49,31 +50,73 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
         print("🎯 [VPNConnectionManager] Initialized with \(backend.displayName) backend")
     }
     
-    func connect(to server: VPNServer) async throws {
+    
+    func connect(to server: VPNServer, enableRetry: Bool = true) async throws {
         print("🔗 [VPNConnectionManager] Connecting to: \(server.countryLong)")
+        
+        let startTime = Date()
+        var actualRetryCount = 0
         
         await MainActor.run {
             currentState = .connecting(server)
         }
         
         do {
-            // Heavy work runs on background thread - doesn't block UI!
-            try await controller.connect(server: server)
-            print("✅ [VPNConnectionManager] Connected successfully")
+            // Use retry logic for better reliability with flaky servers
+            if enableRetry, let openVPNController = controller as? OpenVPNController {
+                try await openVPNController.connectWithRetry(server: server)
+                // TODO: Get actual retry count from policy if needed
+            } else {
+                // Fallback to direct connection (for non-OpenVPN controllers or when retry disabled)
+                try await controller.connect(server: server)
+            }
             
+            let connectionTime = Date().timeIntervalSince(startTime)
+            print("✅ [VPNConnectionManager] Connected successfully in \(String(format: "%.2f", connectionTime))s")
+            
+            // Record successful connection
             await MainActor.run {
+                ConnectionTelemetry.shared.recordAttempt(
+                    serverID: server.id,
+                    success: true,
+                    connectionTime: connectionTime,
+                    retryCount: actualRetryCount
+                )
                 currentState = .connected(server)
             }
         } catch {
+            let connectionTime = Date().timeIntervalSince(startTime)
             print("❌ [VPNConnectionManager] Connection failed: \(error.localizedDescription)")
             
+            // Record failed connection
             await MainActor.run {
+                ConnectionTelemetry.shared.recordAttempt(
+                    serverID: server.id,
+                    success: false,
+                    connectionTime: nil,
+                    retryCount: actualRetryCount,
+                    failureReason: error.localizedDescription
+                )
                 currentState = .error(error.localizedDescription)
             }
             throw error
         }
     }
     
+    func cancelConnection() async {
+        print("🛑 [VPNConnectionManager] Cancelling connection...")
+        
+        await MainActor.run {
+            currentState = .disconnecting
+        }
+        
+        // Cancel the controller's connection
+        controller.cancelConnection()
+        
+        await MainActor.run {
+            currentState = .disconnected
+        }
+    }
     
     func disconnect() async throws {
         print("🔌 [VPNConnectionManager] Disconnecting...")

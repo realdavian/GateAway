@@ -26,6 +26,9 @@ protocol VPNControlling {
     /// - Throws: VPNControllerError on failure
     func disconnect() async throws
     
+    /// Cancel an in-progress connection attempt
+    func cancelConnection()
+    
     /// Returns a human-readable name for this VPN backend
     /// Examples: "OpenVPN CLI", "WireGuard", "IKEv2"
     var backendName: String { get }

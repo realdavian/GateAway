@@ -93,7 +93,7 @@ struct OverviewTab: View {
                                             Text("\(flagEmoji(for: countryShort)) \(country)")
                                                 .font(.subheadline)
                                         }
-                                    } else if case .connecting = vpnStatistics.connectionState {
+                                    } else {
                                         Text("Establishing tunnel...")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
@@ -117,12 +117,71 @@ struct OverviewTab: View {
                             .background(Color.gray.opacity(0.1))
                             .cornerRadius(12)
                             
-                            // Disconnect button (only when connected)
-                            if case .connected = vpnStatistics.connectionState {
+                            // Connection Statistics
+                            if let telemetry = ConnectionTelemetry.shared.getOverallStats() {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Connection Statistics")
+                                        .font(.headline)
+                                    
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Success Rate")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Text("\(Int(Double(telemetry.successCount) / Double(telemetry.totalAttempts) * 100))%")
+                                                .font(.title2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.green)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        VStack(alignment: .trailing, spacing: 4) {
+                                            Text("Avg Connection Time")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                            Text(ConnectionTelemetry.formatTime(telemetry.avgConnectionTime))
+                                                .font(.title2)
+                                                .fontWeight(.bold)
+                                                .foregroundColor(.blue)
+                                        }
+                                    }
+                                    
+                                    HStack {
+                                        Text("Total Attempts: \(telemetry.totalAttempts)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                        Text("\(telemetry.successCount) successful")
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                    }
+                                }
+                                .padding()
+                                .background(Color.blue.opacity(0.05))
+                                .cornerRadius(12)
+                            }
+                            
+                            // Dynamic connection button
+                            switch vpnStatistics.connectionState {
+                            case .connecting, .reconnecting:
+                                Button(action: handleCancelConnection) {
+                                    HStack {
+                                        Image(systemName: "stop.circle.fill")
+                                        Text(vpnStatistics.connectionState == .reconnecting ? "Stop Reconnecting" : "Stop Connecting")
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(Color.red)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(8)
+                                }
+                                .buttonStyle(.plain)
+                            case .connected:
                                 Button(action: handleDisconnect) {
                                     HStack {
                                         Image(systemName: "xmark.circle.fill")
-                                        Text(isDisconnecting ? "Disconnecting..." : "Disconnect")
+                                        Text("Disconnect")
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 10)
@@ -132,6 +191,8 @@ struct OverviewTab: View {
                                 }
                                 .buttonStyle(.plain)
                                 .disabled(isDisconnecting)
+                            default:
+                                EmptyView()
                             }
                             
                             // Quick stats
@@ -210,7 +271,13 @@ struct OverviewTab: View {
             }
         }
     }
-    
+
+    private func handleCancelConnection() {
+        Task {
+            await coordinatorWrapper.cancelConnection()
+        }
+    }
+        
     private func checkOpenVPNStatus() {
         let fileManager = FileManager.default
         let openVPNPaths = [

@@ -49,7 +49,7 @@ final class VPNMonitor: VPNMonitorProtocol {
     func startMonitoring() {
         monitoringRefCount += 1
         print("📊 [VPNMonitor] Starting monitoring (ref count: \(monitoringRefCount))")
-        print("📊 [VPNMonitor] Call stack: \(Thread.callStackSymbols.prefix(5))")
+        // print("📊 [VPNMonitor] Call stack: \(Thread.callStackSymbols.prefix(5))")
         
         // Only start task if not already running
         guard monitorTask == nil else { 
@@ -87,7 +87,7 @@ final class VPNMonitor: VPNMonitorProtocol {
     func stopMonitoring() {
         monitoringRefCount = max(0, monitoringRefCount - 1)
         print("📊 [VPNMonitor] Stop request (ref count: \(monitoringRefCount))")
-        print("📊 [VPNMonitor] Call stack: \(Thread.callStackSymbols.prefix(5))")
+        // print("📊 [VPNMonitor] Call stack: \(Thread.callStackSymbols.prefix(5))")
         
         // Only stop if no more observers
         guard monitoringRefCount == 0 else { 

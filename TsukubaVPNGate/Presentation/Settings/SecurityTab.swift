@@ -389,13 +389,19 @@ struct SecurityTab: View {
     }
     
     private func testTouchID() {
-        do {
-            let _ = try KeychainManager.shared.getPassword()
-            testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
-            showingTestResult = true
-        } catch {
-            testResultMessage = "❌ Failed: \(error.localizedDescription)"
-            showingTestResult = true
+        Task {
+            do {
+                let _ = try await KeychainManager.shared.getPassword()
+                await MainActor.run {
+                    testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
+                    showingTestResult = true
+                }
+            } catch {
+                await MainActor.run {
+                    testResultMessage = "❌ Failed: \(error.localizedDescription)"
+                    showingTestResult = true
+                }
+            }
         }
     }
     

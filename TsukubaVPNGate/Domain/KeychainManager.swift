@@ -17,6 +17,7 @@ final class KeychainManager {
         case saveFailed(OSStatus)
         case retrievalFailed(OSStatus)
         case authenticationCancelled
+        case authenticationFailed
         case biometricsNotAvailable
         case passwordNotFound
         
@@ -28,6 +29,8 @@ final class KeychainManager {
                 return "Failed to retrieve password: \(status)"
             case .authenticationCancelled:
                 return "Touch ID authentication was cancelled"
+            case .authenticationFailed:
+                return "Authentication failed"
             case .biometricsNotAvailable:
                 return "Touch ID is not available on this device"
             case .passwordNotFound:
@@ -71,53 +74,53 @@ final class KeychainManager {
         print("✅ [Keychain] Password saved successfully")
     }
     
-    /// Retrieve admin password from Keychain (triggers Touch ID prompt)
-    func getPassword() throws -> String {
-        // First, authenticate with Touch ID
+    /// Retrieve admin password from Keychain (triggers Touch ID prompt with password fallback)
+    func getPassword() async throws -> String {
+        // Authenticate with Touch ID OR password fallback
         let context = LAContext()
         context.localizedReason = "Authenticate to connect to VPN"
+        context.localizedFallbackTitle = "Use Password"  // Custom fallback button text
         
         var authError: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &authError) else {
-            print("⚠️ [Keychain] Touch ID not available, falling back to device authentication")
-            // If biometrics are not available, we should probably throw an error or handle it differently
-            // For now, let's throw biometricsNotAvailable as the original code did.
+        // Use .deviceOwnerAuthentication (not .deviceOwnerAuthenticationWithBiometrics)
+        // This allows BOTH Touch ID AND password fallback
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &authError) else {
+            print("⚠️ [Keychain] Device authentication not available: \(authError?.localizedDescription ?? "unknown")")
             throw KeychainError.biometricsNotAvailable
         }
         
-        // Create a semaphore to wait for biometric authentication
-        let semaphore = DispatchSemaphore(value: 0)
-        var authSuccess = false
-        var authCancelled = false
         
-        context.evaluatePolicy(
-            .deviceOwnerAuthenticationWithBiometrics,
-            localizedReason: "Authenticate to connect to VPN"
-        ) { success, error in
-            authSuccess = success
-            if let error = error as? LAError {
-                if error.code == .userCancel || error.code == .userFallback || error.code == .appCancel {
-                    authCancelled = true
+        // Use async continuation instead of semaphore - no thread blocking!
+        let authenticated: Bool = try await withCheckedThrowingContinuation { continuation in
+            context.evaluatePolicy(
+                .deviceOwnerAuthentication,
+                localizedReason: "Authenticate to connect to VPN"
+            ) { success, error in
+                if let error = error as? LAError {
+                    // Only treat explicit user cancel as error, NOT fallback
+                    if error.code == .userCancel || error.code == .appCancel {
+                        print("⚠️ [Keychain] User cancelled authentication")
+                        continuation.resume(throwing: KeychainError.authenticationCancelled)
+                        return
+                    }
+                    // .userFallback is NOT an error - it means they chose "Enter Password"
+                }
+                
+                if success {
+                    continuation.resume(returning: true)
+                } else {
+                    print("❌ [Keychain] Authentication failed")
+                    continuation.resume(throwing: KeychainError.biometricsNotAvailable)
                 }
             }
-            semaphore.signal()
         }
         
-        semaphore.wait()
-        
-        guard authSuccess else {
-            if authCancelled {
-                print("⚠️ [Keychain] User cancelled Touch ID")
-                throw KeychainError.authenticationCancelled
-            } else {
-                print("❌ [Keychain] Touch ID authentication failed")
-                // If authentication fails for reasons other than user cancel, it's often due to biometrics not being set up or other system issues.
-                // We can refine this error handling if specific LAError codes need different KeychainError mappings.
-                throw KeychainError.biometricsNotAvailable
-            }
+        guard authenticated else {
+            // Should never reach here due to continuation error handling
+            throw KeychainError.authenticationFailed
         }
         
-        print("✅ [Keychain] Touch ID authenticated successfully")
+        print("✅ [Keychain] Authentication succeeded")
         
         // Now retrieve the password from Keychain
         let query: [String: Any] = [

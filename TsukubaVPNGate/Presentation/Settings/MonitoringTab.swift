@@ -86,8 +86,34 @@ struct MonitoringTab: View {
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
                         
-                        // Disconnect button (only when connected)
-                        if case .connected = vpnStatistics.connectionState {
+                        // Dynamic connection button
+                        if case .connecting = vpnStatistics.connectionState {
+                            Button(action: handleCancelConnection) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "stop.circle.fill")
+                                    Text("Stop Connecting")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        } else if case .reconnecting = vpnStatistics.connectionState {
+                            Button(action: handleCancelConnection) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "stop.circle.fill")
+                                    Text("Stop Reconnecting")
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Color.red)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        } else if case .connected = vpnStatistics.connectionState {
                             Button(action: handleDisconnect) {
                                 HStack {
                                     Image(systemName: "xmark.circle.fill")
@@ -226,6 +252,12 @@ struct MonitoringTab: View {
                     // Could show alert here if needed
                 }
             }
+        }      
+    }
+
+    private func handleCancelConnection() {
+        Task {
+            await coordinatorWrapper.cancelConnection()
         }
     }
 

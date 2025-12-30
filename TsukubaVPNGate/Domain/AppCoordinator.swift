@@ -7,6 +7,7 @@ protocol AppCoordinatorProtocol {
     func connectToBestServer() async throws
     func connectToServer(_ server: VPNServer) async throws
     func disconnect() async throws
+    func cancelConnection() async
     
     func getAvailableCountries() -> [String]
     func getTopServers(forCountry country: String) -> [VPNServer]
@@ -71,11 +72,15 @@ final class AppCoordinator: AppCoordinatorProtocol {
     }
     
     func connectToServer(_ server: VPNServer) async throws {
-        try await connectionManager.connect(to: server)
+        try await connectionManager.connect(to: server, enableRetry: true)
     }
     
     func disconnect() async throws {
         try await connectionManager.disconnect()
+    }
+    
+    func cancelConnection() async {
+        await connectionManager.cancelConnection()
     }
     
     func getCurrentConnectionState() -> VPNConnectionState {

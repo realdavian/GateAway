@@ -25,7 +25,7 @@ final class MonitoringStore: ObservableObject {
     func updateStatistics(_ stats: VPNStatistics) {
         print("🔄 [MonitoringStore] UPDATE: state=\(stats.connectionState), bytes=\(stats.bytesReceived)")
         self.vpnStatistics = stats
-        print("✅ [MonitoringStore] Published new stats")
+        // print("✅ [MonitoringStore] Published new stats")
     }
     
     /// Called by OpenVPNController when connecting to a server

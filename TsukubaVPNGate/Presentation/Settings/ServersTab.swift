@@ -212,6 +212,8 @@ struct ServersTab: View {
                                     server: server,
                                     isBlacklisted: blacklistManager.isBlacklisted(server),
                                     isConnected: isServerConnected,
+                                    connectionState: monitoringStore.vpnStatistics.connectionState,
+                                    connectedServerName: monitoringStore.vpnStatistics.connectedServerName,
                                     onConnect: {
                                         // Check if already connected to a different server
                                         if self.isConnected && !isServerConnected {
@@ -219,6 +221,12 @@ struct ServersTab: View {
                                         } else {
                                             activeAlert = .connect(server)
                                         }
+                                    },
+                                    onDisconnect: {
+                                        handleDisconnect()
+                                    },
+                                    onCancelConnection: {
+                                        handleCancelConnection()
                                     },
                                     onBlacklist: {
                                         let isBlacklisted = blacklistManager.isBlacklisted(server)
@@ -355,21 +363,35 @@ struct ServersTab: View {
             
             // Use existing coordinator logic (DRY principle!)
             coordinatorWrapper.connect(to: server) { result in
-                DispatchQueue.main.async {
-                    switch result {
-                    case .success:
-                        print("✅ Connected to \(server.countryLong)")
-                        // UI will update automatically via MonitoringStore
-                        
-                    case .failure(let error):
-                        // Clear the server info if connection failed
-                        monitoringStore.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
-                        activeAlert = .error(error.localizedDescription)
-                    }
+                switch result {
+                case .success:
+                    print("✅ Connected to \(server.countryLong)")
+                    // UI will update automatically via MonitoringStore
+                    
+                case .failure(let error):
+                    // Clear the server info if connection failed
+                    self.monitoringStore.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
+                    self.activeAlert = .error(error.localizedDescription)
                 }
             }
         }
+    
+    
+    private func handleCancelConnection() {
+        Task {
+            await coordinatorWrapper.cancelConnection()
+        }
     }
+    
+    private func handleDisconnect() {
+        coordinatorWrapper.disconnect { result in
+            if case .failure(let error) = result {
+                self.activeAlert = .error(error.localizedDescription)
+            }
+        }
+    }
+}
+    
     
     // MARK: - Server Row
     
@@ -377,7 +399,11 @@ struct ServersTab: View {
         let server: VPNServer
         let isBlacklisted: Bool
         let isConnected: Bool
+        let connectionState: VPNStatistics.ConnectionState
+        let connectedServerName: String?  // To identify which server is being connected to
         let onConnect: () -> Void
+        let onDisconnect: () -> Void
+        let onCancelConnection: () -> Void
         let onBlacklist: () -> Void
         
         var body: some View {
@@ -460,21 +486,63 @@ struct ServersTab: View {
                 
                 // Actions
                 HStack(spacing: 8) {
-                    Button(action: {
-                        print("🔘 [ServerRow] Connect button tapped for \(server.countryLong)")
-                        onConnect()
-                    }) {
-                        Text(isConnected ? "Connected" : "Connect")
+                    // Dynamic connection button
+                    if isConnected {
+                        // Show Disconnect for connected server
+                        Button(action: {
+                            print("🔘 [ServerRow] Disconnect button tapped for \(server.countryLong)")
+                            onDisconnect()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                Text("Disconnect")
+                            }
                             .font(.caption)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(isConnected ? Color.green : Color.blue)
+                            .background(Color.red)
                             .foregroundColor(.white)
                             .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                    } else if (connectionState == .connecting || connectionState == .reconnecting),
+                              let connectingServerName = connectedServerName,
+                              server.hostName == connectingServerName {
+                        // Show Stop button ONLY for the server being connected to
+                        Button(action: {
+                            print("🛑 [ServerRow] Stop button tapped for \(server.countryLong)")
+                            onCancelConnection()
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "stop.circle.fill")
+                                Text("Stop")
+                            }
+                            .font(.caption)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.red)
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                    }  else {
+                        // Show Connect for disconnected servers
+                        Button(action: {
+                            print("🔘 [ServerRow] Connect button tapped for \(server.countryLong)")
+                            onConnect()
+                        }) {
+                            Text("Connect")
+                                .font(.caption)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isBlacklisted)
+                        .opacity(isBlacklisted ? 0.5 : 1.0)
                     }
-                    .buttonStyle(.plain)
-                    .disabled(isBlacklisted || isConnected)
-                    .opacity((isBlacklisted || isConnected) ? 0.5 : 1.0)
                     
                     Button(action: onBlacklist) {
                         Image(systemName: "hand.raised.slash.fill")

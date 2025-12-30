@@ -15,7 +15,7 @@ final class CoordinatorWrapper: ObservableObject {
     // MARK: - Connection Methods (forwarded to coordinator)
     
     func connect(to server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🚀 [CoordinatorWrapper] Connecting to server: \(server)")
+        print("🚀 [CoordinatorWrapper] Connecting to server: \(server.countryLong)")
         Task {
             do {
                 try await coordinator.connectToServer(server)
@@ -44,6 +44,10 @@ final class CoordinatorWrapper: ObservableObject {
                 }
             }
         }
+    }
+    
+    func cancelConnection() async {
+        await coordinator.cancelConnection()
     }
     
     // MARK: - State Access
