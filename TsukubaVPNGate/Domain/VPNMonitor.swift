@@ -9,6 +9,7 @@ protocol VPNMonitorProtocol {
     func stopMonitoring()
     func refreshStats()
     func setConnectedServer(country: String?, countryShort: String?, serverName: String?)
+    func statisticsStream(interval: UInt64) -> AsyncStream<VPNStatistics>
 }
 
 // MARK: - VPN Monitor Implementation
@@ -348,5 +349,39 @@ final class VPNMonitor: VPNMonitorProtocol {
             port: 1194,
             cipher: "AES-128-CBC"
         )
+    }
+}
+
+// MARK: - AsyncSequence Extension
+
+extension VPNMonitor {
+    /// Stream VPN statistics as AsyncSequence for modern async/await consumption
+    /// - Parameter interval: Polling interval in nanoseconds (default: 1 second)
+    /// - Returns: AsyncStream that yields VPNStatistics at specified interval
+    func statisticsStream(interval: UInt64 = 1_000_000_000) -> AsyncStream<VPNStatistics> {
+        AsyncStream { [weak self] continuation in
+            let task = Task { [weak self] in
+                guard let self else {
+                    continuation.finish()
+                    return
+                }
+                
+                while !Task.isCancelled {
+                    let stats = await self.pollStatistics(previous: self.monitoringStore.vpnStatistics)
+                    continuation.yield(stats)
+                    
+                    do {
+                        try await Task.sleep(nanoseconds: interval)
+                    } catch {
+                        break  // Task cancelled
+                    }
+                }
+                continuation.finish()
+            }
+            
+            continuation.onTermination = { _ in
+                task.cancel()
+            }
+        }
     }
 }

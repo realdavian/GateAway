@@ -64,7 +64,8 @@ final class AppCoordinator: AppCoordinatorProtocol {
     func connectToBestServer() async throws {
         let servers = serverRepository.getCachedServers()
         
-        guard let bestServer = selectionService.selectBestServer(from: servers) else {
+        // Use async parallel testing for best server selection
+        guard let bestServer = await selectionService.selectBestServerAsync(from: servers) else {
             throw NSError(domain: "AppCoordinator", code: 1, userInfo: [NSLocalizedDescriptionKey: "No servers available"])
         }
         
