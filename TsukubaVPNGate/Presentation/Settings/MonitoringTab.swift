@@ -87,47 +87,12 @@ struct MonitoringTab: View {
                         .cornerRadius(12)
                         
                         // Dynamic connection button
-                        if case .connecting = vpnStatistics.connectionState {
-                            Button(action: handleCancelConnection) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "stop.circle.fill")
-                                    Text("Stop Connecting")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.red)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                        } else if case .reconnecting = vpnStatistics.connectionState {
-                            Button(action: handleCancelConnection) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "stop.circle.fill")
-                                    Text("Stop Reconnecting")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.red)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                        } else if case .connected = vpnStatistics.connectionState {
-                            Button(action: handleDisconnect) {
-                                HStack {
-                                    Image(systemName: "xmark.circle.fill")
-                                    Text(isDisconnecting ? "Disconnecting..." : "Disconnect")
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(Color.red)
-                                .foregroundColor(.white)
-                                .cornerRadius(8)
-                            }
-                            .buttonStyle(.plain)
-                            .disabled(isDisconnecting)
-                        }
+                        ConnectionActionButton(
+                            connectionState: vpnStatistics.connectionState,
+                            isDisconnecting: isDisconnecting,
+                            onCancelConnection: handleCancelConnection,
+                            onDisconnect: handleDisconnect
+                        )
                     }
                 }
                 .padding()
@@ -237,7 +202,6 @@ struct MonitoringTab: View {
     private func handleDisconnect() {
         isDisconnecting = true
         
-        // Use existing coordinator logic (DRY principle!)
         coordinatorWrapper.disconnect { result in
             DispatchQueue.main.async {
                 isDisconnecting = false
@@ -245,11 +209,8 @@ struct MonitoringTab: View {
                 switch result {
                 case .success:
                     print("✅ Disconnected successfully")
-                    // UI updates automatically via MonitoringStore
-                    
                 case .failure(let error):
                     print("❌ Disconnect failed: \(error.localizedDescription)")
-                    // Could show alert here if needed
                 }
             }
         }      
@@ -260,71 +221,4 @@ struct MonitoringTab: View {
             await coordinatorWrapper.cancelConnection()
         }
     }
-
-    private func colorForState(_ state: VPNStatistics.ConnectionState) -> Color {
-        switch state {
-        case .disconnected: return .gray
-        case .connecting: return .orange
-        case .connected: return .green
-        case .reconnecting: return .blue
-        case .error: return .red
-        }
-    }
-
-    private func flagEmoji(for countryCode: String) -> String {
-        let base: UInt32 = 127397
-        var emoji = ""
-        for scalar in countryCode.uppercased().unicodeScalars {
-            if let scalarValue = UnicodeScalar(base + scalar.value) {
-                emoji.unicodeScalars.append(scalarValue)
-            }
-        }
-        return emoji.isEmpty ? "🌍" : emoji
-    }
 }
-
-// MARK: - Helper Views
-
-struct StatisticRow: View {
-    let icon: String
-    let iconColor: Color
-    let label: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .font(.title3)
-                .foregroundColor(iconColor)
-                .frame(width: 30)
-            
-            Text(label)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.system(.body, design: .monospaced))
-                .fontWeight(.medium)
-        }
-    }
-}
-
-struct DetailRow: View {
-    let label: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-                .font(.caption)
-                .fontWeight(.medium)
-        }
-    }
-}
-

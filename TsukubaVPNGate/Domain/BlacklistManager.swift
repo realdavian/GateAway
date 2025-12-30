@@ -45,6 +45,7 @@ final class BlacklistManager: BlacklistManagerProtocol {
             id: server.ip,
             hostname: server.hostName,
             country: server.countryLong,
+            countryShort: server.countryShort,
             reason: reason.isEmpty ? "No reason provided" : reason,
             blacklistedAt: Date(),
             expiresAt: expiryDate

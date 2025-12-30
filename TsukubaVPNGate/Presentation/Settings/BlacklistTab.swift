@@ -71,20 +71,45 @@ struct BlacklistTab: View {
                     Text("Servers you blacklist will appear here")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                    
-                    Button(action: { showingAddDialog = true }) {
-                        Text("Add Server to Blacklist")
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(Color.gray.opacity(0.2))
-                            .cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
                 }
                 Spacer()
             } else {
+                // Table header
+                HStack(spacing: 12) {
+                    Text("")
+                        .frame(width: 36)
+                    
+                    Text("Hostname")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    Text("Country")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    Text("Added")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    Text("Expires")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    Text("")
+                        .frame(width: 20)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(Color.gray.opacity(0.05))
+                
+                Divider()
+                
                 ScrollView {
-                    LazyVStack(spacing: 1) {
+                    LazyVStack(spacing: 0) {
                         ForEach(blacklist) { server in
                             BlacklistRow(
                                 server: server,
@@ -137,248 +162,3 @@ struct BlacklistTab: View {
         refreshBlacklist()
     }
 }
-
-// MARK: - Blacklist Row
-
-struct BlacklistRow: View {
-    let server: BlacklistedServer
-    let onRemove: () -> Void
-    let onEdit: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 12) {
-            // Flag
-            Text(flagEmoji(for: String(server.country.prefix(2))))
-                .font(.title2)
-                .frame(width: 40)
-            
-            // Server info
-            VStack(alignment: .leading, spacing: 4) {
-                Text(server.hostname)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(server.isExpired ? .secondary : .primary)
-                
-                Text(server.id)
-                    .font(.system(size: 11, design: .monospaced))
-                    .foregroundColor(.secondary)
-            }
-            .frame(width: 160, alignment: .leading)
-            
-            // Country
-            Text(server.country)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .frame(width: 100, alignment: .leading)
-            
-            // Reason
-            Text(server.reason)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .lineLimit(1)
-                .frame(width: 120, alignment: .leading)
-            
-            // Blacklisted date
-            Text(server.formattedBlacklistDate)
-                .font(.system(size: 11))
-                .foregroundColor(.secondary)
-                .frame(width: 140, alignment: .leading)
-            
-            // Expiry
-            HStack(spacing: 4) {
-                if server.isExpired {
-                    Image(systemName: "clock.badge.exclamationmark")
-                        .font(.caption)
-                        .foregroundColor(.orange)
-                }
-                Text(server.expiryDescription)
-                    .font(.system(size: 11))
-                    .foregroundColor(server.isExpired ? .orange : .secondary)
-            }
-            .frame(width: 120, alignment: .leading)
-            
-            Spacer()
-            
-            // Actions
-            HStack(spacing: 8) {
-                Button(action: onRemove) {
-                    Image(systemName: "trash")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
-                .buttonStyle(.plain)
-                .help("Remove from blacklist")
-            }
-        }
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(server.isExpired ? Color.orange.opacity(0.05) : Color.clear)
-        .opacity(server.isExpired ? 0.6 : 1.0)
-    }
-    
-    private func flagEmoji(for countryCode: String) -> String {
-        let base: UInt32 = 127397
-        var emoji = ""
-        for scalar in countryCode.uppercased().unicodeScalars {
-            if let scalarValue = UnicodeScalar(base + scalar.value) {
-                emoji.unicodeScalars.append(scalarValue)
-            }
-        }
-        return emoji.isEmpty ? "🌍" : emoji
-    }
-}
-
-// MARK: - Add to Blacklist View
-
-struct AddToBlacklistView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
-    @EnvironmentObject var serverStore: ServerStore
-    
-    @State private var selectedServerId: String = ""
-    @State private var reason: String = ""
-    @State private var selectedExpiry: BlacklistExpiry = .duration(86400)
-    
-    let onAdd: (VPNServer, String, BlacklistExpiry) -> Void
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            HStack {
-                Text("Add to Blacklist")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer()
-                Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-            }
-            .padding()
-            
-            Divider()
-            
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Server selection
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Select Server")
-                            .font(.headline)
-                        
-                        if serverStore.isLoading {
-                            HStack {
-                                ProgressView()
-                                    .scaleEffect(0.7)
-                                Text("Loading servers...")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                        } else if serverStore.servers.isEmpty {
-                            Text("No servers available. Refresh the server list from the Servers tab.")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        } else {
-                            Picker("Server", selection: $selectedServerId) {
-                                Text("Select a server...").tag("")
-                                ForEach(serverStore.servers.sorted { $0.countryLong < $1.countryLong }) { server in
-                                    Text("\(server.countryLong) - \(server.ip)")
-                                        .tag(server.ip)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                        }
-                    }
-                    
-                    // Reason
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Reason (Optional)")
-                            .font(.headline)
-                        
-                        TextField("e.g., Too slow, Connection failed", text: $reason)
-                            .textFieldStyle(.plain)
-                            .padding(10)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(8)
-                    }
-                    
-                    // Expiry
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Expires After")
-                            .font(.headline)
-                        
-                        VStack(spacing: 8) {
-                            ForEach(BlacklistExpiry.presets, id: \.0) { preset in
-                                Button(action: {
-                                    selectedExpiry = preset.1
-                                }) {
-                                    HStack {
-                                        Text(preset.0)
-                                            .font(.subheadline)
-                                        Spacer()
-                                        if isSelected(preset.1) {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .foregroundColor(.blue)
-                                        }
-                                    }
-                                    .padding(12)
-                                    .background(isSelected(preset.1) ? Color.blue.opacity(0.1) : Color.gray.opacity(0.05))
-                                    .cornerRadius(8)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-                .padding()
-            }
-            
-            Divider()
-            
-            // Actions
-            HStack {
-                Button("Cancel") {
-                    presentationMode.wrappedValue.dismiss()
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(Color.gray.opacity(0.2))
-                .foregroundColor(.primary)
-                .cornerRadius(8)
-                .buttonStyle(.plain)
-                
-                Spacer()
-                
-                Button("Add to Blacklist") {
-                    if let server = serverStore.servers.first(where: { $0.ip == selectedServerId }) {
-                        onAdd(server, reason, selectedExpiry)
-                        presentationMode.wrappedValue.dismiss()
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
-                .background(selectedServerId.isEmpty ? Color.gray : Color.accentColor)
-                .foregroundColor(.white)
-                .cornerRadius(8)
-                .buttonStyle(.plain)
-                .disabled(selectedServerId.isEmpty)
-            }
-            .padding()
-        }
-        .frame(width: 500, height: 600)
-        .onAppear {
-            serverStore.loadServers()
-        }
-    }
-    
-    private func isSelected(_ expiry: BlacklistExpiry) -> Bool {
-        switch (selectedExpiry, expiry) {
-        case (.never, .never):
-            return true
-        case (.duration(let a), .duration(let b)):
-            return a == b
-        case (.date(let a), .date(let b)):
-            return a == b
-        default:
-            return false
-        }
-    }
-}
-
