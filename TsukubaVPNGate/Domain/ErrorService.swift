@@ -23,7 +23,7 @@ enum TsukubaError: LocalizedError {
 final class ErrorService {
     static let shared = ErrorService()
     
-    private let logger = Logger(subsystem: "com.tsukubavpngate", category: "Error")
+    private let logger = Logger(subsystem: Bundle.identifier, category: "Error")
     
     private init() {}
     

@@ -35,16 +35,18 @@ jobs:
           mkdir -p ./build/exported
           cp -R ./build/TsukubaVPNGate.xcarchive/Products/Applications/TsukubaVPNGate.app ./build/exported/
           
-      - name: Create Zip
+      - name: Create DMG
         run: |
-          cd ./build/exported
-          zip -r ../../TsukubaVPNGate.zip TsukubaVPNGate.app
+          mkdir -p ./build/dmg_root
+          cp -R ./build/exported/TsukubaVPNGate.app ./build/dmg_root/
+          ln -s /Applications ./build/dmg_root/Applications
+          hdiutil create -volname "TsukubaVPNGate" -srcfolder ./build/dmg_root -ov -format UDZO TsukubaVPNGate.dmg
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: TsukubaVPNGate.zip
+          files: TsukubaVPNGate.dmg
           name: Release ${{ github.ref_name }}
           draft: false
           prerelease: false
@@ -55,8 +57,8 @@ jobs:
             
             **Note for macOS users:**
             This app is unsigned. To run it:
-            1. Download and unzip `TsukubaVPNGate.zip`.
-            2. **Right-click** `TsukubaVPNGate.app` and select **Open**.
+            1. Download and open `TsukubaVPNGate.dmg`.
+            2. **Right-click** `TsukubaVPNGate.app` inside the disk image and select **Open**.
             3. Click **Open** again in the warning dialog.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

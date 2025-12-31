@@ -20,7 +20,7 @@ protocol KeychainManagerProtocol {
 final class KeychainManager: KeychainManagerProtocol {
     
     // MARK: - Constants
-    private let service = "com.tsukuba.vpngate"
+    private let service = Bundle.identifier
     private let account = "admin-password"
     
     // MARK: - Errors

@@ -1,5 +1,11 @@
 import SwiftUI
 
+extension Bundle {
+    static var identifier: String {
+        return main.bundleIdentifier ?? "com.davian.TsukubaVPNGateApp"
+    }
+}
+
 // MARK: - Shared Helper Functions
 
 /// Convert country code to flag emoji
