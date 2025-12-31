@@ -52,23 +52,6 @@ jobs:
           files: TsukubaVPNGate.dmg
           name: GateAway ${{ github.ref_name }}
           draft: false
-          prerelease: true
-          body: |
-            ## 🚀 GateAway ${{ github.ref_name }} - Beta Release
-            
-            First public beta of GateAway, a native macOS menu bar VPN client.
-            
-            ### Features
-            - One-click connect to best VPN server
-            - WiFi-style menu bar interface
-            - Real-time connection statistics
-            - Touch ID authentication support
-            
-            ### Installation
-            1. Download `TsukubaVPNGate.dmg`
-            2. Open and drag app to Applications
-            3. Right-click → Open (required for unsigned apps)
-            
-            ⚠️ This is an unsigned beta build for testing.
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
