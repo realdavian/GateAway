@@ -33,7 +33,7 @@ A native and lightweight macOS menu bar application for connecting to <a href="h
 ## Getting Started
 
 ### 1. Download
-Download the latest `.dmg` from the [Releases](https://github.com/realdavian/mac-util-vpn-menu-app/releases) page.
+Download the latest `.dmg` from the [Releases](https://github.com/realdavian/GateAway/releases) page.
 
 ### 2. Install
 1. Open the DMG and drag the app to **Applications**.
@@ -42,8 +42,8 @@ Download the latest `.dmg` from the [Releases](https://github.com/realdavian/mac
 
 ### 3. Build from Source (Optional)
 ```bash
-git clone https://github.com/realdavian/mac-util-vpn-menu-app.git
-cd mac-util-vpn-menu-app
+git clone https://github.com/realdavian/GateAway.git
+cd GateAway
 open GateAway.xcodeproj
 # Press Cmd + R to build and run
 ```
