@@ -1,13 +1,10 @@
 import Foundation
-import Combine
 
 // MARK: - VPN Monitor Protocol
 
 protocol VPNMonitorProtocol {
-    var statisticsPublisher: AnyPublisher<VPNStatistics, Never> { get }
     func startMonitoring()
     func stopMonitoring()
-    func refreshStats()
     func setConnectedServer(country: String?, countryShort: String?, serverName: String?)
     func statisticsStream(interval: UInt64) -> AsyncStream<VPNStatistics>
 }
@@ -31,10 +28,7 @@ final class VPNMonitor: VPNMonitorProtocol {
     private let managementSocketPath: String
     private let fileManager = FileManager.default
     
-    // Forward to MonitoringStore's publisher
-    var statisticsPublisher: AnyPublisher<VPNStatistics, Never> {
-        return monitoringStore.$vpnStatistics.eraseToAnyPublisher()
-    }
+
     
     init(monitoringStore: MonitoringStore) {
         self.monitoringStore = monitoringStore
@@ -101,12 +95,7 @@ final class VPNMonitor: VPNMonitorProtocol {
         monitorTask = nil
     }
     
-    // Legacy synchronous method for backward compatibility
-    func refreshStats() {
-        Task {
-            await refreshStatsAsync()
-        }
-    }
+
     
     // MARK: - Stats Polling
     
@@ -145,43 +134,23 @@ final class VPNMonitor: VPNMonitorProtocol {
             stats = parseStatus(status, currentStats: previous, parsedState: stats)
         } else {
             // Keep previous byte counts if status query fails
-            stats = VPNStatistics(
-                connectionState: stats.connectionState,
-                connectedSince: stats.connectedSince,
-                vpnIP: stats.vpnIP,
-                publicIP: stats.publicIP,
+            stats = stats.copying(
                 connectedCountry: previous.connectedCountry,
                 connectedCountryShort: previous.connectedCountryShort,
                 connectedServerName: previous.connectedServerName,
                 bytesReceived: previous.bytesReceived,
                 bytesSent: previous.bytesSent,
                 currentDownloadSpeed: previous.currentDownloadSpeed,
-                currentUploadSpeed: previous.currentUploadSpeed,
-                ping: stats.ping,
-                protocolType: stats.protocolType,
-                port: stats.port,
-                cipher: stats.cipher
+                currentUploadSpeed: previous.currentUploadSpeed
             )
         }
         
         // Preserve server info from previous stats
         if stats.connectedServerName == nil, let serverName = previous.connectedServerName {
-            stats = VPNStatistics(
-                connectionState: stats.connectionState,
-                connectedSince: stats.connectedSince,
-                vpnIP: stats.vpnIP,
-                publicIP: stats.publicIP,
+            stats = stats.copying(
                 connectedCountry: previous.connectedCountry,
                 connectedCountryShort: previous.connectedCountryShort,
-                connectedServerName: serverName,
-                bytesReceived: stats.bytesReceived,
-                bytesSent: stats.bytesSent,
-                currentDownloadSpeed: stats.currentDownloadSpeed,
-                currentUploadSpeed: stats.currentUploadSpeed,
-                ping: stats.ping,
-                protocolType: stats.protocolType,
-                port: stats.port,
-                cipher: stats.cipher
+                connectedServerName: serverName
             )
         }
         
@@ -240,14 +209,7 @@ final class VPNMonitor: VPNMonitorProtocol {
             .filter { !$0.isEmpty && !$0.hasPrefix(">") && !$0.hasPrefix("END") }
         
         guard let stateLine = lines.first(where: { $0.range(of: "^[0-9]+,", options: .regularExpression) != nil }) else {
-            return VPNStatistics(
-                connectionState: .disconnected,
-                connectedSince: nil,
-                vpnIP: nil,
-                publicIP: nil,
-                connectedCountry: nil,
-                connectedCountryShort: nil,
-                connectedServerName: nil,
+            return VPNStatistics.empty.copying(
                 bytesReceived: currentStats.bytesReceived,
                 bytesSent: currentStats.bytesSent,
                 currentDownloadSpeed: currentStats.currentDownloadSpeed,
@@ -280,22 +242,11 @@ final class VPNMonitor: VPNMonitorProtocol {
         
         let connectedSince = timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
         
-        return VPNStatistics(
+        return currentStats.copying(
             connectionState: connectionState,
             connectedSince: connectedSince,
             vpnIP: vpnIP,
-            publicIP: publicIP,
-            connectedCountry: currentStats.connectedCountry,
-            connectedCountryShort: currentStats.connectedCountryShort,
-            connectedServerName: currentStats.connectedServerName,
-            bytesReceived: currentStats.bytesReceived,
-            bytesSent: currentStats.bytesSent,
-            currentDownloadSpeed: currentStats.currentDownloadSpeed,
-            currentUploadSpeed: currentStats.currentUploadSpeed,
-            ping: currentStats.ping,
-            protocolType: currentStats.protocolType,
-            port: currentStats.port,
-            cipher: currentStats.cipher
+            publicIP: publicIP
         )
     }
     
@@ -332,14 +283,7 @@ final class VPNMonitor: VPNMonitorProtocol {
         let uploadSpeed = bytesSent > currentStats.bytesSent ?
             Double(bytesSent - currentStats.bytesSent) : 0.0
         
-        return VPNStatistics(
-            connectionState: parsedState.connectionState,
-            connectedSince: parsedState.connectedSince,
-            vpnIP: parsedState.vpnIP,
-            publicIP: parsedState.publicIP,
-            connectedCountry: parsedState.connectedCountry,
-            connectedCountryShort: parsedState.connectedCountryShort,
-            connectedServerName:parsedState.connectedServerName,
+        return parsedState.copying(
             bytesReceived: bytesReceived,
             bytesSent: bytesSent,
             currentDownloadSpeed: downloadSpeed,

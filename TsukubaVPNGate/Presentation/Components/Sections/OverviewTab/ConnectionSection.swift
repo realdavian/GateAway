@@ -6,6 +6,7 @@ import SwiftUI
 struct OverviewTabConnectionSection: View {
     @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
     @EnvironmentObject var monitoringStore: MonitoringStore
+    @EnvironmentObject var telemetry: ConnectionTelemetry
     
     @State private var isDisconnecting: Bool = false
     
@@ -67,8 +68,8 @@ struct OverviewTabConnectionSection: View {
                     .cornerRadius(12)
                     
                     // Connection Statistics
-                    if let telemetry = ConnectionTelemetry.shared.getOverallStats() {
-                        ConnectionStatisticsView(telemetry: telemetry)
+                    if let telemetryStats = telemetry.getOverallStats() {
+                        ConnectionStatisticsView(telemetry: telemetryStats)
                     }
                     
                     // Dynamic connection button

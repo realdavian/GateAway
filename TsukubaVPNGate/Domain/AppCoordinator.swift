@@ -20,19 +20,19 @@ protocol AppCoordinatorProtocol {
 // MARK: - Implementation (DIP: Coordinates services via abstractions)
 
 final class AppCoordinator: AppCoordinatorProtocol {
-    // Dependencies (all injected via protocols - DIP)
-    private let serverRepository: ServerRepositoryProtocol
+    // Dependencies
+    private let serverStore: ServerStore
     private let selectionService: ServerSelectionServiceProtocol
     private let connectionManager: VPNConnectionManagerProtocol
     private let preferencesManager: PreferencesManagerProtocol
     
     init(
-        serverRepository: ServerRepositoryProtocol,
+        serverStore: ServerStore,
         selectionService: ServerSelectionServiceProtocol,
         connectionManager: VPNConnectionManagerProtocol,
         preferencesManager: PreferencesManagerProtocol
     ) {
-        self.serverRepository = serverRepository
+        self.serverStore = serverStore
         self.selectionService = selectionService
         self.connectionManager = connectionManager
         self.preferencesManager = preferencesManager
@@ -40,29 +40,34 @@ final class AppCoordinator: AppCoordinatorProtocol {
     
     // MARK: - Server Management
     
+    @MainActor
     func refreshServerList() async throws {
-        _ = try await serverRepository.fetchServers()
+        _ = try await serverStore.fetchServers()
     }
     
+    @MainActor
     func getAvailableCountries() -> [String] {
-        let servers = serverRepository.getCachedServers()
+        let servers = serverStore.servers
         return selectionService.availableCountries(from: servers)
     }
     
+    @MainActor
     func getTopServers(forCountry country: String) -> [VPNServer] {
-        let servers = serverRepository.getCachedServers()
+        let servers = serverStore.servers
         let preferences = preferencesManager.loadPreferences()
         return selectionService.topServers(from: servers, country: country, limit: preferences.topKPerCountry)
     }
     
+    @MainActor
     func getServerByID(_ id: String) -> VPNServer? {
-        return serverRepository.getCachedServers().first { $0.id == id }
+        return serverStore.servers.first { $0.id == id }
     }
     
     // MARK: - Connection Management
     
+    @MainActor
     func connectToBestServer() async throws {
-        let servers = serverRepository.getCachedServers()
+        let servers = serverStore.servers
         
         // Use async parallel testing for best server selection
         guard let bestServer = await selectionService.selectBestServerAsync(from: servers) else {
@@ -96,10 +101,11 @@ final class AppCoordinator: AppCoordinatorProtocol {
     
     // MARK: - UI Helpers (for presentation layer)
     
+    @MainActor
     func getStatusSummary() -> (title: String, subtitle: String?) {
         let state = connectionManager.currentState
-        let servers = serverRepository.getCachedServers()
-        let lastRefresh = serverRepository.getLastRefreshDate()
+        let servers = serverStore.servers
+        let lastRefresh = serverStore.lastRefresh
         
         let title: String
         switch state {

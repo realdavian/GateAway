@@ -97,10 +97,11 @@ struct SecurityTabAdvancedSection: View {
 // MARK: - Cache Status View
 
 private struct CacheStatusView: View {
+    @Environment(\.cacheManager) private var cacheManager
     let cacheTTL: Int
     
     var body: some View {
-        if let cacheAge = ServerCacheManager.shared.getCacheAge() {
+        if let cacheAge = cacheManager.getCacheAge() {
             let ageMinutes = Int(cacheAge / 60)
             let isExpired = cacheAge > TimeInterval(cacheTTL * 60)
             
@@ -122,7 +123,7 @@ private struct CacheStatusView: View {
                 Spacer()
                 
                 Button("Clear Cache") {
-                    ServerCacheManager.shared.clearCache()
+                    cacheManager.clearCache()
                     print("🗑️ Cache cleared by user")
                 }
                 .font(.caption)

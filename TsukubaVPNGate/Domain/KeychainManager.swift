@@ -2,11 +2,22 @@ import Foundation
 import Security
 import LocalAuthentication
 
+// MARK: - Protocol for DI
+
+protocol KeychainManagerProtocol {
+    func savePassword(_ password: String) throws
+    func getPassword() async throws -> String
+    func deletePassword() throws
+    func isPasswordStored() -> Bool
+    func save(password: Data, account: String) throws
+    func get(account: String) throws -> Data
+    func delete(account: String) throws
+}
+
+// MARK: - Implementation
+
 /// Manages secure storage of admin password in macOS Keychain with Touch ID protection
-final class KeychainManager {
-    
-    // MARK: - Singleton
-    static let shared = KeychainManager()
+final class KeychainManager: KeychainManagerProtocol {
     
     // MARK: - Constants
     private let service = "com.tsukuba.vpngate"
@@ -39,8 +50,8 @@ final class KeychainManager {
         }
     }
     
-    // MARK: - Init
-    private init() {}
+    // MARK: - Init (internal for testability)
+    init() {}
     
     // MARK: - Public Methods
     
@@ -219,13 +230,13 @@ final class KeychainManager {
         }
     }
     
-    // MARK: - Legacy Methods (for VPN password storage)
+    // MARK: - VPN Credential Methods
     
-    /// Legacy method for generic keychain storage (used by OpenVPN config)
+    /// Save VPN credential to Keychain
     func save(password: Data, account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.tsukubavpngate.vpn",
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecValueData as String: password
         ]
@@ -237,7 +248,7 @@ final class KeychainManager {
         if status == errSecDuplicateItem {
             let updateQuery: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
-                kSecAttrService as String: "com.tsukubavpngate.vpn",
+                kSecAttrService as String: service,
                 kSecAttrAccount as String: account
             ]
             
@@ -254,11 +265,11 @@ final class KeychainManager {
         }
     }
     
-    /// Legacy method for generic keychain retrieval (used by OpenVPN config)
+    /// Retrieve VPN credential from Keychain
     func get(account: String) throws -> Data {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.tsukubavpngate.vpn",
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecReturnData as String: true,
             kSecMatchLimit as String: kSecMatchLimitOne
@@ -280,11 +291,11 @@ final class KeychainManager {
         return data
     }
     
-    /// Legacy method for generic keychain deletion (used by OpenVPN config)
+    /// Delete VPN credential from Keychain
     func delete(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "com.tsukubavpngate.vpn",
+            kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
         

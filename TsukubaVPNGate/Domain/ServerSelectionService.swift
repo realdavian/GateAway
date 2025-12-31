@@ -1,10 +1,9 @@
 import Foundation
+import Network
 
 // MARK: - Protocol (ISP: Interface segregation - only selection methods)
 
 protocol ServerSelectionServiceProtocol {
-    func selectBestServer(from servers: [VPNServer]) -> VPNServer?
-    func selectBestServer(from servers: [VPNServer], inCountry country: String) -> VPNServer?
     func selectBestServerAsync(from servers: [VPNServer]) async -> VPNServer?
     func filterServers(_ servers: [VPNServer], byCountry country: String) -> [VPNServer]
     func topServers(from servers: [VPNServer], country: String, limit: Int) -> [VPNServer]
@@ -15,27 +14,17 @@ protocol ServerSelectionServiceProtocol {
 
 final class ServerSelectionService: ServerSelectionServiceProtocol {
     
-    // MARK: - Sync Selection (uses stored ping values)
-    
-    func selectBestServer(from servers: [VPNServer]) -> VPNServer? {
-        return servers
-            .sorted { compareServers($0, $1) }
-            .first
-    }
-    
-    func selectBestServer(from servers: [VPNServer], inCountry country: String) -> VPNServer? {
-        let filtered = filterServers(servers, byCountry: country)
-        return selectBestServer(from: filtered)
-    }
-    
-    // MARK: - Async Selection (real-time parallel ping testing)
+    // MARK: - Async Selection (real-time parallel testing)
     
     /// Select best server by testing top candidates in parallel
     /// Returns fastest responding server, falls back to score-based if no responses
     func selectBestServerAsync(from servers: [VPNServer]) async -> VPNServer? {
+        guard !servers.isEmpty else { return nil }
+        
+        // For small lists, skip network testing and use score-based selection
         guard servers.count >= 5 else {
-            // Small list - use sync method
-            return selectBestServer(from: servers)
+            print("🏓 [ServerSelection] Small list (\(servers.count)), using score-based selection")
+            return servers.sorted { compareServers($0, $1) }.first
         }
         
         // Get top 10 candidates by score/ping
@@ -43,14 +32,14 @@ final class ServerSelectionService: ServerSelectionServiceProtocol {
         
         print("🏓 [ServerSelection] Testing \(candidates.count) servers in parallel...")
         
-        // Test in parallel, fallback to sync if all fail
+        // Test in parallel, fallback to score-based if all fail
         if let fastest = await testServersInParallel(candidates) {
             print("✅ [ServerSelection] Fastest server: \(fastest.countryLong) (\(fastest.ip))")
             return fastest
         }
         
         print("⚠️ [ServerSelection] No ping responses, falling back to score-based selection")
-        return selectBestServer(from: servers)
+        return servers.sorted { compareServers($0, $1) }.first
     }
     
     // MARK: - Filtering & Utilities
@@ -76,7 +65,7 @@ final class ServerSelectionService: ServerSelectionServiceProtocol {
         await withTaskGroup(of: (VPNServer, TimeInterval?).self) { group in
             for server in candidates {
                 group.addTask {
-                    let responseTime = await self.pingServer(server)
+                    let responseTime = await self.probeServer(server)
                     return (server, responseTime)
                 }
             }
@@ -96,24 +85,55 @@ final class ServerSelectionService: ServerSelectionServiceProtocol {
         }
     }
     
-    private func pingServer(_ server: VPNServer) async -> TimeInterval? {
+    // MARK: - Private: TCP Probe (non-blocking)
+    
+    /// Probe server reachability using TCP connection
+    /// More relevant than ICMP ping (tests actual port connectivity) and non-blocking
+    private func probeServer(_ server: VPNServer) async -> TimeInterval? {
         let start = Date()
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/sbin/ping")
-        process.arguments = ["-c", "1", "-t", "2", server.ip]  // 1 ping, 2 second timeout
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
+        let host = NWEndpoint.Host(server.ip)
+        // Try common OpenVPN ports: 443 first (often used), then 1194 (default)
+        let port = NWEndpoint.Port(rawValue: 443) ?? .https
         
-        do {
-            try process.run()
-            process.waitUntilExit()
+        let parameters = NWParameters.tcp
+        parameters.allowLocalEndpointReuse = true
+        
+        let connection = NWConnection(host: host, port: port, using: parameters)
+        
+        return await withCheckedContinuation { continuation in
+            var hasResumed = false
             
-            if process.terminationStatus == 0 {
-                return Date().timeIntervalSince(start)
+            connection.stateUpdateHandler = { [weak connection] state in
+                guard !hasResumed else { return }
+                
+                switch state {
+                case .ready:
+                    hasResumed = true
+                    let elapsed = Date().timeIntervalSince(start)
+                    continuation.resume(returning: elapsed)
+                    connection?.cancel()
+                    
+                case .failed, .cancelled:
+                    hasResumed = true
+                    continuation.resume(returning: nil)
+                    connection?.cancel()
+                    
+                default:
+                    break
+                }
             }
-            return nil
-        } catch {
-            return nil
+            
+            connection.start(queue: .global(qos: .userInitiated))
+            
+            // Timeout after 1.5s (faster than ping's 2s)
+            Task {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                if !hasResumed {
+                    hasResumed = true
+                    continuation.resume(returning: nil)
+                    connection.cancel()
+                }
+            }
         }
     }
     

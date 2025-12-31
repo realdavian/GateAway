@@ -43,13 +43,19 @@ struct ServerStats: Codable {
     }
 }
 
+// MARK: - Protocol for DI
+
+protocol TelemetryProtocol {
+    func recordAttempt(serverID: String, success: Bool, connectionTime: TimeInterval?, retryCount: Int, failureReason: String?)
+    func getOverallStats() -> (totalAttempts: Int, successCount: Int, avgConnectionTime: TimeInterval)?
+}
+
 // MARK: - Connection Telemetry Manager
 
 /// Manages connection telemetry data for reliability tracking and server scoring
 /// All data is stored locally - no external analytics
 @MainActor
-class ConnectionTelemetry: ObservableObject {
-    static let shared = ConnectionTelemetry()
+class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
     
     @Published private(set) var stats: [String: ServerStats] = [:]
     
@@ -58,7 +64,8 @@ class ConnectionTelemetry: ObservableObject {
     
     private let storageKey = "vpn.connectionAttempts"
     
-    private init() {
+    // MARK: - Init (internal for testability)
+    init() {
         load()
     }
     
@@ -88,16 +95,6 @@ class ConnectionTelemetry: ObservableObject {
         print("📊 [Telemetry] Recorded \(success ? "✅ success" : "❌ failure") for server \(serverID)")
     }
     
-    /// Get reliability score (0-100) for a server
-    func getReliabilityScore(for serverID: String) -> Double {
-        stats[serverID]?.reliabilityScore ?? 50.0  // Default to 50 if no data
-    }
-    
-    /// Get stats for a specific server
-    func getStats(for serverID: String) -> ServerStats? {
-        stats[serverID]
-    }
-    
     /// Get overall statistics across all servers
     func getOverallStats() -> (totalAttempts: Int, successCount: Int, avgConnectionTime: TimeInterval)? {
         guard !attempts.isEmpty else { return nil }
@@ -107,23 +104,6 @@ class ConnectionTelemetry: ObservableObject {
         let avgTime = attempts.compactMap { $0.connectionTime }.reduce(0, +) / Double(max(1, success))
         
         return (total, success, avgTime)
-    }
-    
-    /// Get most reliable servers
-    func getMostReliableServers(count: Int = 5) -> [String] {
-        stats
-            .filter { $0.value.totalAttempts >= 3 }  // Require minimum attempts
-            .sorted { $0.value.reliabilityScore > $1.value.reliabilityScore }
-            .prefix(count)
-            .map { $0.key }
-    }
-    
-    /// Clear all telemetry data
-    func clearAll() {
-        attempts.removeAll()
-        stats.removeAll()
-        save()
-        print("📊 [Telemetry] Cleared all data")
     }
     
     // MARK: - Private Helpers
@@ -196,16 +176,6 @@ class ConnectionTelemetry: ObservableObject {
 // MARK: - Helper Extensions
 
 extension ConnectionTelemetry {
-    /// Get color for reliability score
-    static func colorForScore(_ score: Double) -> Color {
-        switch score {
-        case 80...100: return .green
-        case 60..<80: return .yellow
-        case 40..<60: return .orange
-        default: return .red
-        }
-    }
-    
     /// Format connection time for display
     static func formatTime(_ seconds: TimeInterval) -> String {
         if seconds < 1 {

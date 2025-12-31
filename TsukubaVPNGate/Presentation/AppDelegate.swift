@@ -4,9 +4,14 @@ import AppKit
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    // MARK: - Single Instances (Composition Root)
+    // MARK: - Services (Composition Root - all dependencies created here)
+    private let keychainManager = KeychainManager()
+    private let cacheManager = ServerCacheManager()
+    private let telemetry = ConnectionTelemetry()
+    
+    // MARK: - Stores (ObservableObjects shared with Views)
     private let monitoringStore = MonitoringStore()
-    private let serverStore = ServerStore()
+    private lazy var serverStore = ServerStore(cache: cacheManager)
     private lazy var vpnMonitor = VPNMonitor(monitoringStore: monitoringStore)
     
     // MARK: - UI Components
@@ -95,22 +100,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         self.currentBackend = preferences.vpnProvider
         
-        // Create OpenVPN controller (only supported backend)
-        let vpnController: VPNControlling = OpenVPNController(vpnMonitor: vpnMonitor)
+        // Create OpenVPN controller with injected dependencies
+        let vpnController: VPNControlling = OpenVPNController(
+            vpnMonitor: vpnMonitor,
+            keychainManager: keychainManager
+        )
         print("🔧 [AppDelegate] Using OpenVPN CLI backend")
         
         let connectionManager = VPNConnectionManager(
             controller: vpnController,
-            backend: preferences.vpnProvider
+            backend: preferences.vpnProvider,
+            telemetry: telemetry
         )
         self.connectionManager = connectionManager
         
         // Create or update coordinator
-        let serverRepository: ServerRepositoryProtocol = ServerRepository()
         let selectionService: ServerSelectionServiceProtocol = ServerSelectionService()
         
         let coordinator = AppCoordinator(
-            serverRepository: serverRepository,
+            serverStore: serverStore,
             selectionService: selectionService,
             connectionManager: connectionManager,
             preferencesManager: preferencesManager
@@ -123,7 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 coordinator: coordinator,
                 monitoringStore: monitoringStore,
                 serverStore: serverStore,
-                vpnMonitor: vpnMonitor
+                vpnMonitor: vpnMonitor,
+                keychainManager: keychainManager,
+                cacheManager: cacheManager,
+                telemetry: telemetry
             )
             self.statusBarController = controller
             
@@ -162,13 +173,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // (Must be outside if/else to work on both first init and backend switch)
         connectionManager.onStateChange = { [weak self] newState in
             print("🎨 [AppDelegate] UI update triggered for state: \(newState.idString)")
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 self?.statusBarController?.rebuildMenu()
                 
-                // Immediately refresh stats to update UI
+                // Immediately start monitoring to update UI
                 // Note: Settings tabs manage VPNMonitor.startMonitoring() via onAppear/onDisappear
-                // We don't start/stop here to avoid ref count conflicts
-                self?.vpnMonitor.refreshStats()
+                self?.vpnMonitor.startMonitoring()
             }
         }
     }

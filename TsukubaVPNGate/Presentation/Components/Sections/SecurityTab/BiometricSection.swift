@@ -4,7 +4,9 @@ import SwiftUI
 
 /// Biometric authentication section for Touch ID setup and management
 struct SecurityTabBiometricSection: View {
-    @State private var isPasswordStored: Bool = KeychainManager.shared.isPasswordStored()
+    @Environment(\.keychainManager) private var keychainManager
+    
+    @State private var isPasswordStored: Bool = false
     @Binding var showingPasswordSetup: Bool
     @Binding var showingTestResult: Bool
     @Binding var testResultMessage: String
@@ -75,12 +77,15 @@ struct SecurityTabBiometricSection: View {
                 }
             }
         }
+        .onAppear {
+            isPasswordStored = keychainManager.isPasswordStored()
+        }
     }
     
     private func testTouchID() {
         Task {
             do {
-                let _ = try await KeychainManager.shared.getPassword()
+                let _ = try await keychainManager.getPassword()
                 await MainActor.run {
                     testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
                     showingTestResult = true
@@ -96,7 +101,7 @@ struct SecurityTabBiometricSection: View {
     
     private func removeStoredPassword() {
         do {
-            try KeychainManager.shared.deletePassword()
+            try keychainManager.deletePassword()
             isPasswordStored = false
             print("✅ Password removed from Keychain")
         } catch {
@@ -107,6 +112,6 @@ struct SecurityTabBiometricSection: View {
     
     /// Call this after password is saved to refresh state
     func refreshPasswordStatus() {
-        isPasswordStored = KeychainManager.shared.isPasswordStored()
+        isPasswordStored = keychainManager.isPasswordStored()
     }
 }

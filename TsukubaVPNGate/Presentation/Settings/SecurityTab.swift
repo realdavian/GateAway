@@ -3,6 +3,8 @@ import SwiftUI
 // MARK: - Security Tab
 
 struct SecurityTab: View {
+    @Environment(\.keychainManager) private var keychainManager
+    
     @State private var showingPasswordSetup: Bool = false
     @State private var setupPassword: String = ""
     @State private var showingTestResult: Bool = false
@@ -44,7 +46,7 @@ struct SecurityTab: View {
     
     private func savePasswordToKeychain() {
         do {
-            try KeychainManager.shared.savePassword(setupPassword)
+            try keychainManager.savePassword(setupPassword)
             setupPassword = "" // Clear for security
             print("✅ Password saved to Keychain")
         } catch {

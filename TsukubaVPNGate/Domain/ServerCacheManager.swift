@@ -1,10 +1,20 @@
 import Foundation
 
+// MARK: - Protocol for DI
+
+protocol ServerCacheManagerProtocol {
+    var cacheTTLMinutes: Int { get set }
+    var isCacheValid: Bool { get }
+    func getCachedServers() -> [VPNServer]?
+    func cacheServers(_ servers: [VPNServer])
+    func clearCache()
+    func getCacheAge() -> TimeInterval?
+}
+
+// MARK: - Implementation
+
 /// Manages caching of VPN server list with configurable TTL
-final class ServerCacheManager {
-    
-    // MARK: - Singleton
-    static let shared = ServerCacheManager()
+final class ServerCacheManager: ServerCacheManagerProtocol {
     
     // MARK: - UserDefaults Keys
     private let cacheKey = "vpn.serverCache"
@@ -25,7 +35,7 @@ final class ServerCacheManager {
         }
     }
     
-    // MARK: - Init
+    // MARK: - Init (internal for testability)
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
     }
@@ -83,11 +93,6 @@ final class ServerCacheManager {
             return nil
         }
         return Date().timeIntervalSince(timestamp)
-    }
-    
-    /// Get cache timestamp
-    func getCacheTimestamp() -> Date? {
-        return userDefaults.object(forKey: cacheTimestampKey) as? Date
     }
     
     /// Check if cache exists and is valid

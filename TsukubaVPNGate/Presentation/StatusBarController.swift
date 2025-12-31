@@ -8,6 +8,12 @@ final class StatusBarController: NSObject {
     private let monitoringStore: MonitoringStore
     private let serverStore: ServerStore
     private let vpnMonitor: VPNMonitor
+    
+    // Services for View injection
+    private let keychainManager: KeychainManagerProtocol
+    private let cacheManager: ServerCacheManagerProtocol
+    private let telemetry: ConnectionTelemetry
+    
     private let statusItem: NSStatusItem
     private var settingsWindow: SettingsWindowController?
     private var cancellables = Set<AnyCancellable>()
@@ -17,14 +23,22 @@ final class StatusBarController: NSObject {
         return !button.title.isEmpty || button.image != nil
     }
     
-    init(coordinator: AppCoordinatorProtocol,
-         monitoringStore: MonitoringStore,
-         serverStore: ServerStore,
-         vpnMonitor: VPNMonitor) {
+    init(
+        coordinator: AppCoordinatorProtocol,
+        monitoringStore: MonitoringStore,
+        serverStore: ServerStore,
+        vpnMonitor: VPNMonitor,
+        keychainManager: KeychainManagerProtocol,
+        cacheManager: ServerCacheManagerProtocol,
+        telemetry: ConnectionTelemetry
+    ) {
         self.coordinator = coordinator
         self.monitoringStore = monitoringStore
         self.serverStore = serverStore
         self.vpnMonitor = vpnMonitor
+        self.keychainManager = keychainManager
+        self.cacheManager = cacheManager
+        self.telemetry = telemetry
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         
@@ -315,7 +329,10 @@ final class StatusBarController: NSObject {
             settingsWindow = SettingsWindowController(
                 coordinator: coordinator,
                 monitoringStore: monitoringStore,
-                serverStore: serverStore
+                serverStore: serverStore,
+                keychainManager: keychainManager,
+                cacheManager: cacheManager,
+                telemetry: telemetry
             )
         }
         settingsWindow?.show()

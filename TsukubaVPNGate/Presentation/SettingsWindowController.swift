@@ -4,14 +4,22 @@ import SwiftUI
 // MARK: - Settings Window Controller (Presentation Layer - SRP: Window management)
 
 final class SettingsWindowController: NSWindowController {
-    init(coordinator: AppCoordinatorProtocol,
-         monitoringStore: MonitoringStore,
-         serverStore: ServerStore) {
+    init(
+        coordinator: AppCoordinatorProtocol,
+        monitoringStore: MonitoringStore,
+        serverStore: ServerStore,
+        keychainManager: KeychainManagerProtocol,
+        cacheManager: ServerCacheManagerProtocol,
+        telemetry: ConnectionTelemetry
+    ) {
         let coordinatorWrapper = CoordinatorWrapper(coordinator)
         let rootView = SettingsView()
             .environmentObject(coordinatorWrapper)
             .environmentObject(monitoringStore)
             .environmentObject(serverStore)
+            .environmentObject(telemetry)
+            .environment(\.keychainManager, keychainManager)
+            .environment(\.cacheManager, cacheManager)
         let hosting = NSHostingController(rootView: rootView)
         
         let window = NSWindow(contentViewController: hosting)

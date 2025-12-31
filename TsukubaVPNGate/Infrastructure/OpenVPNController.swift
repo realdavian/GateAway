@@ -59,8 +59,12 @@ final class OpenVPNController: VPNControlling {
         }
     }
     
-    init(vpnMonitor: VPNMonitorProtocol) {
+    // MARK: - Dependencies (injected for testability)
+    private let keychainManager: KeychainManagerProtocol
+    
+    init(vpnMonitor: VPNMonitorProtocol, keychainManager: KeychainManagerProtocol) {
         self.vpnMonitor = vpnMonitor
+        self.keychainManager = keychainManager
         
         // Check both Homebrew paths for OpenVPN
         if fileManager.fileExists(atPath: "/opt/homebrew/sbin/openvpn") {
@@ -299,7 +303,7 @@ final class OpenVPNController: VPNControlling {
         let authFilePath = "\(configDirectory)/auth.txt"
         
         // 1. Try to get password from Keychain (account "vpn")
-        let passwordData = try? KeychainManager.shared.get(account: "vpn")
+        let passwordData = try? keychainManager.get(account: "vpn")
         let password = passwordData.flatMap { String(data: $0, encoding: .utf8) } ?? "vpn"
         
         // 2. Write to file with restricted permissions (0600)
@@ -362,12 +366,12 @@ final class OpenVPNController: VPNControlling {
     
     private func startOpenVPN(configPath: String) async throws {
         // Try to get admin password from Keychain (triggers Touch ID if stored)
-        if KeychainManager.shared.isPasswordStored() {
+        if keychainManager.isPasswordStored() {
             print("🔐 [OpenVPN] Password found in Keychain, using Touch ID...")
             
             do {
                 // This will trigger Touch ID prompt
-                let password = try await KeychainManager.shared.getPassword()
+                let password = try await keychainManager.getPassword()
                 print("✅ [OpenVPN] Retrieved password via Touch ID")
                 
                 // Use password with osascript for non-interactive sudo

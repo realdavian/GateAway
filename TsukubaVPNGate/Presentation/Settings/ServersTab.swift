@@ -6,6 +6,7 @@ struct ServersTab: View {
     @EnvironmentObject var coordinatorWrapper: CoordinatorWrapper
     @EnvironmentObject var monitoringStore: MonitoringStore
     @EnvironmentObject var serverStore: ServerStore
+    @Environment(\.cacheManager) private var cacheManager
     
     @State private var filteredServers: [VPNServer] = []
     @State private var searchText: String = ""
@@ -23,6 +24,7 @@ struct ServersTab: View {
         }
         return monitoringStore.vpnStatistics.vpnIP
     }
+
     
     private var connectedServerName: String? {
         monitoringStore.vpnStatistics.connectedServerName
@@ -86,7 +88,7 @@ struct ServersTab: View {
                 .help("Refresh server list from API")
                 
                 // Cache indicator
-                if let cacheAge = ServerCacheManager.shared.getCacheAge() {
+                if let cacheAge = cacheManager.getCacheAge() {
                     let ageMinutes = Int(cacheAge / 60)
                     HStack(spacing: 4) {
                         Image(systemName: "clock.fill")

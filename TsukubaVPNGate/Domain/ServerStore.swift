@@ -9,19 +9,21 @@ final class ServerStore: ObservableObject {
     @Published private(set) var servers: [VPNServer] = []
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastError: Error?
+    @Published private(set) var lastRefresh: Date?
     
-    // MARK: - Dependencies
+    // MARK: - Dependencies (injected for testability)
     private let api: VPNGateAPIProtocol
-    private let cache: ServerCacheManager
+    private let cache: ServerCacheManagerProtocol
     
     // MARK: - Init
-    init(api: VPNGateAPIProtocol = VPNGateAPI(), cache: ServerCacheManager = .shared) {
+    init(api: VPNGateAPIProtocol = VPNGateAPI(), cache: ServerCacheManagerProtocol) {
         self.api = api
         self.cache = cache
         
         // Load from cache immediately on init
         if let cachedServers = cache.getCachedServers() {
             self.servers = cachedServers
+            self.lastRefresh = cache.getCacheAge().map { Date().addingTimeInterval(-$0) }
             print("📦 [ServerStore] Initialized with \(cachedServers.count) cached servers")
         }
     }
@@ -29,7 +31,29 @@ final class ServerStore: ObservableObject {
     
     // MARK: - Public Methods
     
-    /// Load servers from cache or API
+    /// Fetch servers from API (async version for coordinator)
+    /// - Returns: Array of fetched servers
+    func fetchServers() async throws -> [VPNServer] {
+        isLoading = true
+        lastError = nil
+        
+        do {
+            let fetchedServers = try await api.fetchServers()
+            self.servers = fetchedServers
+            self.cache.cacheServers(fetchedServers)
+            self.lastRefresh = Date()
+            self.isLoading = false
+            print("✅ [ServerStore] Fetched \(fetchedServers.count) servers from API")
+            return fetchedServers
+        } catch {
+            self.isLoading = false
+            self.lastError = error
+            print("❌ [ServerStore] Fetch failed: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    /// Load servers from cache or API (fire-and-forget version)
     /// - Parameter forceRefresh: If true, bypasses cache and fetches from API
     func loadServers(forceRefresh: Bool = false) {
         // Try cache first if not forcing refresh
@@ -40,7 +64,9 @@ final class ServerStore: ObservableObject {
         }
         
         // Fetch from API
-        fetchFromAPI()
+        Task {
+            _ = try? await fetchServers()
+        }
     }
     
     /// Pre-fetch servers in background for instant availability
@@ -65,31 +91,6 @@ final class ServerStore: ObservableObject {
             } catch {
                 print("⚠️ [ServerStore] Warmup failed: \(error.localizedDescription)")
                 // Don't set lastError during warmup - it's background
-            }
-        }
-    }
-    
-    // MARK: - Private Methods
-    
-    private func fetchFromAPI() {
-        isLoading = true
-        lastError = nil
-        
-        Task {
-            do {
-                let fetchedServers = try await api.fetchServers()
-                await MainActor.run {
-                    self.isLoading = false
-                    self.servers = fetchedServers
-                    self.cache.cacheServers(fetchedServers)
-                    print("✅ [ServerStore] Fetched \(fetchedServers.count) servers from API")
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                    self.lastError = error
-                    print("❌ [ServerStore] Fetch failed: \(error.localizedDescription)")
-                }
             }
         }
     }

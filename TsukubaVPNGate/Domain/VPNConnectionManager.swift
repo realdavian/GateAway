@@ -35,6 +35,8 @@ protocol VPNConnectionManagerProtocol {
 
 final class VPNConnectionManager: VPNConnectionManagerProtocol {
     private let controller: VPNControlling
+    private let telemetry: TelemetryProtocol
+    
     private(set) var currentState: VPNConnectionState = .disconnected {
         didSet {
             if oldValue != currentState {
@@ -45,8 +47,13 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     }
     var onStateChange: ((VPNConnectionState) -> Void)?
     
-    init(controller: VPNControlling, backend: UserPreferences.VPNProvider = .openVPN) {
+    init(
+        controller: VPNControlling,
+        backend: UserPreferences.VPNProvider = .openVPN,
+        telemetry: TelemetryProtocol
+    ) {
         self.controller = controller
+        self.telemetry = telemetry
         print("🎯 [VPNConnectionManager] Initialized with \(backend.displayName) backend")
     }
     
@@ -76,11 +83,12 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
             
             // Record successful connection
             await MainActor.run {
-                ConnectionTelemetry.shared.recordAttempt(
+                telemetry.recordAttempt(
                     serverID: server.id,
                     success: true,
                     connectionTime: connectionTime,
-                    retryCount: actualRetryCount
+                    retryCount: actualRetryCount,
+                    failureReason: nil
                 )
                 currentState = .connected(server)
             }
@@ -90,7 +98,7 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
             
             // Record failed connection
             await MainActor.run {
-                ConnectionTelemetry.shared.recordAttempt(
+                telemetry.recordAttempt(
                     serverID: server.id,
                     success: false,
                     connectionTime: nil,

@@ -107,3 +107,44 @@ struct VPNStatistics {
     }
 }
 
+// MARK: - Copying Extension
+
+extension VPNStatistics {
+    /// Create a copy with selective field updates
+    /// Uses double-optional pattern: nil = keep existing, .some(nil) = set to nil
+    func copying(
+        connectionState: ConnectionState? = nil,
+        connectedSince: Date?? = nil,
+        vpnIP: String?? = nil,
+        publicIP: String?? = nil,
+        connectedCountry: String?? = nil,
+        connectedCountryShort: String?? = nil,
+        connectedServerName: String?? = nil,
+        bytesReceived: Int64? = nil,
+        bytesSent: Int64? = nil,
+        currentDownloadSpeed: Double? = nil,
+        currentUploadSpeed: Double? = nil,
+        ping: Int?? = nil,
+        protocolType: String?? = nil,
+        port: Int?? = nil,
+        cipher: String?? = nil
+    ) -> VPNStatistics {
+        VPNStatistics(
+            connectionState: connectionState ?? self.connectionState,
+            connectedSince: connectedSince ?? self.connectedSince,
+            vpnIP: vpnIP ?? self.vpnIP,
+            publicIP: publicIP ?? self.publicIP,
+            connectedCountry: connectedCountry ?? self.connectedCountry,
+            connectedCountryShort: connectedCountryShort ?? self.connectedCountryShort,
+            connectedServerName: connectedServerName ?? self.connectedServerName,
+            bytesReceived: bytesReceived ?? self.bytesReceived,
+            bytesSent: bytesSent ?? self.bytesSent,
+            currentDownloadSpeed: currentDownloadSpeed ?? self.currentDownloadSpeed,
+            currentUploadSpeed: currentUploadSpeed ?? self.currentUploadSpeed,
+            ping: ping ?? self.ping,
+            protocolType: protocolType ?? self.protocolType,
+            port: port ?? self.port,
+            cipher: cipher ?? self.cipher
+        )
+    }
+}
