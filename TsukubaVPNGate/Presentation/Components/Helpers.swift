@@ -16,19 +16,6 @@ func flagEmoji(for countryCode: String) -> String {
     return emoji.isEmpty ? "🌍" : emoji
 }
 
-/// Get color for VPN connection state
-/// - Parameter state: Current connection state
-/// - Returns: Appropriate color for the state
-func colorForState(_ state: VPNStatistics.ConnectionState) -> Color {
-    switch state {
-    case .disconnected: return .gray
-    case .connecting: return .orange
-    case .connected: return .green
-    case .reconnecting: return .blue
-    case .error: return .red
-    }
-}
-
 /// Format speed from bits per second to human-readable Mbps
 /// - Parameter bps: Speed in bits per second
 /// - Returns: Formatted string with one decimal place

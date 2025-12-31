@@ -52,7 +52,7 @@ final class CoordinatorWrapper: ObservableObject {
     
     // MARK: - State Access
     
-    var connectionState: VPNConnectionState {
+    var connectionState: ConnectionState {
         coordinator.getCurrentConnectionState()
     }
 }

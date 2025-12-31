@@ -19,19 +19,19 @@ struct ServersTab: View {
     
     // Computed property to get connected server info
     private var connectedServerIP: String? {
-        guard case .connected = monitoringStore.vpnStatistics.connectionState else {
+        guard case .connected = monitoringStore.connectionState else {
             return nil
         }
-        return monitoringStore.vpnStatistics.vpnIP
+        return monitoringStore.stats.vpnIP
     }
 
     
     private var connectedServerName: String? {
-        monitoringStore.vpnStatistics.connectedServerName
+        monitoringStore.serverInfo.serverName
     }
     
     private var isConnected: Bool {
-        if case .connected = monitoringStore.vpnStatistics.connectionState {
+        if case .connected = monitoringStore.connectionState {
             return true
         }
         return false
@@ -196,8 +196,8 @@ struct ServersTab: View {
                         LazyVStack(spacing: 1) {
                             ForEach(filteredServers) { server in
                                 let isServerConnected: Bool = {
-                                    let connectionState = monitoringStore.vpnStatistics.connectionState
-                                    let connectedName = monitoringStore.vpnStatistics.connectedServerName
+                                    let connectionState = monitoringStore.connectionState
+                                    let connectedName = monitoringStore.serverInfo.serverName
                                     
                                     guard case .connected = connectionState,
                                           let connectedServerName = connectedName else {
@@ -211,8 +211,8 @@ struct ServersTab: View {
                                     server: server,
                                     isBlacklisted: blacklistManager.isBlacklisted(server),
                                     isConnected: isServerConnected,
-                                    connectionState: monitoringStore.vpnStatistics.connectionState,
-                                    connectedServerName: monitoringStore.vpnStatistics.connectedServerName,
+                                    connectionState: monitoringStore.connectionState,
+                                    connectedServerName: monitoringStore.serverInfo.serverName,
                                     onConnect: {
                                         if self.isConnected && !isServerConnected {
                                             activeAlert = .reconnect(server)
@@ -256,7 +256,7 @@ struct ServersTab: View {
             .onChange(of: serverStore.servers) { _ in
                 filterAndSortServers()
             }
-            .onChange(of: monitoringStore.vpnStatistics.connectedServerName) { newName in
+            .onChange(of: monitoringStore.serverInfo.serverName) { newName in
                 print("🔄 [ServersTab] Connected server name changed to: \(newName ?? "nil")")
             }
             .sheet(item: $serverToBlacklist) { server in
@@ -342,18 +342,12 @@ struct ServersTab: View {
     }
     
     private func connectToServer(_ server: VPNServer) {
-        monitoringStore.setConnectedServer(
-            country: server.countryLong,
-            countryShort: server.countryShort,
-            serverName: server.hostName
-        )
-        
+        // Server info is set by VPNConnectionManager via MonitoringStore.setConnecting()
         coordinatorWrapper.connect(to: server) { result in
             switch result {
             case .success:
                 print("✅ Connected to \(server.countryLong)")
             case .failure(let error):
-                self.monitoringStore.setConnectedServer(country: nil, countryShort: nil, serverName: nil)
                 self.activeAlert = .error(error.localizedDescription)
             }
         }

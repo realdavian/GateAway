@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Stores (ObservableObjects shared with Views)
     private let monitoringStore = MonitoringStore()
     private lazy var serverStore = ServerStore(cache: cacheManager)
-    private lazy var vpnMonitor = VPNMonitor(monitoringStore: monitoringStore)
+    private lazy var vpnMonitor = VPNMonitor()
     
     // MARK: - UI Components
     private var statusBarController: StatusBarController?
@@ -23,6 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
         return true
+    }
+    
+    func applicationWillTerminate(_ notification: Notification) {
+        // Cleanup: disconnect VPN on app quit (best-effort, no password prompt)
+        print("🧹 [AppDelegate] App terminating - cleaning up VPN...")
+        Task {
+            try? await connectionManager?.disconnect()
+        }
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -110,9 +118,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let connectionManager = VPNConnectionManager(
             controller: vpnController,
             backend: preferences.vpnProvider,
-            telemetry: telemetry
+            telemetry: telemetry,
+            monitoringStore: monitoringStore,
+            vpnMonitor: vpnMonitor
         )
         self.connectionManager = connectionManager
+        
+        // Set up MonitoringStore subscription to VPNMonitor stats
+        Task { @MainActor in
+            monitoringStore.subscribe(to: vpnMonitor.statsPublisher)
+        }
         
         // Create or update coordinator
         let selectionService: ServerSelectionServiceProtocol = ServerSelectionService()

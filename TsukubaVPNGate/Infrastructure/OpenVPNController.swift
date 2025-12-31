@@ -101,6 +101,13 @@ final class OpenVPNController: VPNControlling {
     func connect(server: VPNServer) async throws {
         print("🔗 [OpenVPN] Connecting to \(server.countryLong) (\(server.hostName))")
         
+        // 0. Kill any existing openvpn process (ensures only 1 connection)
+        if getOpenVPNProcessCount() > 0 {
+            print("⚠️ [OpenVPN] Killing existing process before new connection")
+            _ = sendManagementCommand("signal SIGTERM")
+            try await Task.sleep(nanoseconds: 500_000_000)  // Wait 0.5s for cleanup
+        }
+        
         // 1. Pre-flight Permission Check
         try PermissionService.shared.checkOpenVPNPermission()
         
@@ -132,14 +139,7 @@ final class OpenVPNController: VPNControlling {
             // Check success (file I/O and socket I/O automatically on background)
             if isActuallyConnected() {
                 print("✅ [OpenVPN] Connection established after \(attempt) seconds")
-                
-                // Update MonitoringStore with connected server info
-                vpnMonitor.setConnectedServer(
-                    country: server.countryLong,
-                    countryShort: server.countryShort,
-                    serverName: server.hostName
-                )
-                
+                // Server info is set by VPNConnectionManager via MonitoringStore
                 return  // Success!
             }
             
@@ -178,12 +178,23 @@ final class OpenVPNController: VPNControlling {
 
     
     /// Cancel an in-progress connection attempt
+    /// Uses management socket (no sudo needed). If socket doesn't exist yet,
+    /// Task cancellation in VPNConnectionManager handles stopping the retry loop.
     func cancelConnection() {
         print("🛑 [OpenVPN] Cancelling connection...")
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/killall")
-        process.arguments = ["openvpn"]
-        try? process.run()
+        
+        // Try management socket first (NO SUDO NEEDED!)
+        if fileManager.fileExists(atPath: managementSocketPath) {
+            print("📡 [OpenVPN] Sending cancel via management socket...")
+            if sendManagementCommand("signal SIGTERM") {
+                print("✅ [OpenVPN] Cancel signal sent via socket")
+                return
+            }
+        }
+        
+        // If socket doesn't exist, process hasn't fully started
+        // The Task cancellation in VPNConnectionManager stops the retry loop
+        print("ℹ️ [OpenVPN] No socket yet - Task cancellation will stop the connection")
     }
     
     func disconnect() async throws {

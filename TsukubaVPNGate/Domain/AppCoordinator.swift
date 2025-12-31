@@ -12,7 +12,7 @@ protocol AppCoordinatorProtocol {
     func getAvailableCountries() -> [String]
     func getTopServers(forCountry country: String) -> [VPNServer]
     func getServerByID(_ id: String) -> VPNServer?
-    func getCurrentConnectionState() -> VPNConnectionState
+    func getCurrentConnectionState() -> ConnectionState
     func getPreferences() -> UserPreferences
     func getStatusSummary() -> (title: String, subtitle: String?)
 }
@@ -89,7 +89,7 @@ final class AppCoordinator: AppCoordinatorProtocol {
         await connectionManager.cancelConnection()
     }
     
-    func getCurrentConnectionState() -> VPNConnectionState {
+    func getCurrentConnectionState() -> ConnectionState {
         return connectionManager.currentState
     }
     
@@ -111,12 +111,14 @@ final class AppCoordinator: AppCoordinatorProtocol {
         switch state {
         case .disconnected:
             title = "Disconnected"
-        case .connecting(let server):
-            title = "Connecting to \(server.countryLong)..."
-        case .connected(let server):
-            title = "Connected — \(server.countryLong)"
+        case .connecting:
+            title = "Connecting..."
+        case .connected:
+            title = "Connected"
         case .disconnecting:
             title = "Disconnecting..."
+        case .reconnecting:
+            title = "Reconnecting..."
         case .error(let message):
             title = "Error: \(message)"
         }

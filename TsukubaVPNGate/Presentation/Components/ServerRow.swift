@@ -8,7 +8,7 @@ struct ServerRow: View {
     let server: VPNServer
     let isBlacklisted: Bool
     let isConnected: Bool
-    let connectionState: VPNStatistics.ConnectionState
+    let connectionState: ConnectionState
     let connectedServerName: String?
     let onConnect: () -> Void
     let onDisconnect: () -> Void

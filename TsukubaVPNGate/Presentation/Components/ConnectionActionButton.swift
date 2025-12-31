@@ -5,7 +5,7 @@ import SwiftUI
 /// Reusable connection action button that displays appropriate action based on VPN state
 /// Used in OverviewTab, MonitoringTab, and potentially other views
 struct ConnectionActionButton: View {
-    let connectionState: VPNStatistics.ConnectionState
+    let connectionState: ConnectionState
     let isDisconnecting: Bool
     let onCancelConnection: () -> Void
     let onDisconnect: () -> Void

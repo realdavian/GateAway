@@ -10,8 +10,16 @@ struct OverviewTabConnectionSection: View {
     
     @State private var isDisconnecting: Bool = false
     
-    private var vpnStatistics: VPNStatistics {
-        monitoringStore.vpnStatistics
+    private var connectionState: ConnectionState {
+        monitoringStore.connectionState
+    }
+    
+    private var stats: VPNStats {
+        monitoringStore.stats
+    }
+    
+    private var serverInfo: VPNServerInfo {
+        monitoringStore.serverInfo
     }
     
     var body: some View {
@@ -24,26 +32,26 @@ struct OverviewTabConnectionSection: View {
                 // Status Card
                 VStack(spacing: 12) {
                     HStack {
-                        Image(systemName: vpnStatistics.connectionState.icon)
+                        Image(systemName: connectionState.icon)
                             .font(.title2)
-                            .foregroundColor(vpnStatistics.connectionState.color)
+                            .foregroundColor(colorForState(connectionState))
                         
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(vpnStatistics.connectionState.displayName)
+                            Text(connectionState.displayName)
                                 .font(.headline)
                             
-                            if case .connected = vpnStatistics.connectionState {
-                                let countryShort = vpnStatistics.connectedCountryShort ?? ""
+                            if case .connected = connectionState {
+                                let countryShort = serverInfo.countryShort ?? ""
                                     
-                                if let country = vpnStatistics.connectedCountry {
+                                if let country = serverInfo.country {
                                     Text("\(flagEmoji(for: countryShort)) \(country)")
                                         .font(.subheadline)
                                 }
-                            } else if case .connecting = vpnStatistics.connectionState {
+                            } else if case .connecting = connectionState {
                                 Text("Establishing tunnel...")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                            } else if case .reconnecting = vpnStatistics.connectionState {
+                            } else if case .reconnecting = connectionState {
                                 Text("Reconnecting...")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -52,9 +60,9 @@ struct OverviewTabConnectionSection: View {
                         
                         Spacer()
                         
-                        if case .connected = vpnStatistics.connectionState {
+                        if case .connected = connectionState {
                             VStack(alignment: .trailing, spacing: 4) {
-                                Text(vpnStatistics.formattedDuration)
+                                Text(formattedDuration)
                                     .font(.system(.body, design: .monospaced))
                                     .foregroundColor(.green)
                                 Text("Connected")
@@ -74,19 +82,28 @@ struct OverviewTabConnectionSection: View {
                     
                     // Dynamic connection button
                     ConnectionActionButton(
-                        connectionState: vpnStatistics.connectionState,
+                        connectionState: connectionState,
                         isDisconnecting: isDisconnecting,
                         onCancelConnection: handleCancelConnection,
                         onDisconnect: handleDisconnect
                     )
                     
                     // Quick stats when connected
-                    if case .connected = vpnStatistics.connectionState {
-                        QuickStatsView(vpnStatistics: vpnStatistics)
+                    if case .connected = connectionState {
+                        QuickStatsView(stats: stats)
                     }
                 }
             }
         }
+    }
+    
+    private var formattedDuration: String {
+        guard let since = stats.connectedSince else { return "--:--:--" }
+        let elapsed = Date().timeIntervalSince(since)
+        let hours = Int(elapsed) / 3600
+        let minutes = (Int(elapsed) % 3600) / 60
+        let seconds = Int(elapsed) % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
     
     private func handleDisconnect() {
@@ -166,14 +183,14 @@ private struct ConnectionStatisticsView: View {
 // MARK: - Quick Stats View
 
 private struct QuickStatsView: View {
-    let vpnStatistics: VPNStatistics
+    let stats: VPNStats
     
     var body: some View {
         HStack(spacing: 16) {
             StatItem(
                 icon: "arrow.down.circle.fill",
                 label: "Download",
-                value: vpnStatistics.formattedBytesReceived
+                value: stats.formattedBytesReceived
             )
             
             Divider()
@@ -182,7 +199,7 @@ private struct QuickStatsView: View {
             StatItem(
                 icon: "arrow.up.circle.fill",
                 label: "Upload",
-                value: vpnStatistics.formattedBytesSent
+                value: stats.formattedBytesSent
             )
             
             Divider()
@@ -191,7 +208,7 @@ private struct QuickStatsView: View {
             StatItem(
                 icon: "speedometer",
                 label: "Speed",
-                value: vpnStatistics.formattedDownloadSpeed
+                value: stats.formattedDownloadSpeed
             )
         }
         .padding()

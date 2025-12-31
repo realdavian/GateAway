@@ -7,13 +7,21 @@ struct MonitoringTab: View {
     @EnvironmentObject var monitoringStore: MonitoringStore
     
     @State private var isDisconnecting: Bool = false
-
-    private var vpnStatistics: VPNStatistics {
-        monitoringStore.vpnStatistics
+    
+    private var connectionState: ConnectionState {
+        monitoringStore.connectionState
+    }
+    
+    private var stats: VPNStats {
+        monitoringStore.stats
+    }
+    
+    private var serverInfo: VPNServerInfo {
+        monitoringStore.serverInfo
     }
 
     private var connectedSinceString: String? {
-        guard let date = vpnStatistics.connectedSince else { return nil }
+        guard let date = stats.connectedSince else { return nil }
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .medium
@@ -36,19 +44,19 @@ struct MonitoringTab: View {
                             // Status indicator
                             ZStack {
                                 Circle()
-                                    .fill(colorForState(vpnStatistics.connectionState).opacity(0.2))
+                                    .fill(colorForState(connectionState).opacity(0.2))
                                     .frame(width: 40, height: 40)
                                 
-                                Image(systemName: vpnStatistics.connectionState.icon)
-                                    .foregroundColor(colorForState(vpnStatistics.connectionState))
+                                Image(systemName: connectionState.icon)
+                                    .foregroundColor(colorForState(connectionState))
                             }
                             
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(vpnStatistics.connectionState.displayName)
+                                Text(connectionState.displayName)
                                     .font(.headline)
                                 
-                                let countryShort = vpnStatistics.connectedCountryShort ?? ""
-                                if let country = vpnStatistics.connectedCountry {
+                                let countryShort = serverInfo.countryShort ?? ""
+                                if let country = serverInfo.country {
                                     Text("\(flagEmoji(for: countryShort)) \(country)")
                                         .font(.subheadline)
                                 }
@@ -56,25 +64,15 @@ struct MonitoringTab: View {
                             
                             Spacer()
                             
-                            // VPN IP and Public IP
-                            if case .connected = vpnStatistics.connectionState {
+                            // VPN IP
+                            if case .connected = connectionState {
                                 VStack(alignment: .trailing, spacing: 4) {
-                                    if let vpnIP = vpnStatistics.vpnIP {
+                                    if let vpnIP = stats.vpnIP {
                                         HStack(spacing: 4) {
                                             Text("VPN:")
                                                 .font(.caption2)
                                                 .foregroundColor(.secondary)
                                             Text(vpnIP)
-                                                .font(.caption)
-                                                .fontWeight(.medium)
-                                        }
-                                    }
-                                    if let publicIP = vpnStatistics.publicIP {
-                                        HStack(spacing: 4) {
-                                            Text("Public:")
-                                                .font(.caption2)
-                                                .foregroundColor(.secondary)
-                                            Text(publicIP)
                                                 .font(.caption)
                                                 .fontWeight(.medium)
                                         }
@@ -88,7 +86,7 @@ struct MonitoringTab: View {
                         
                         // Dynamic connection button
                         ConnectionActionButton(
-                            connectionState: vpnStatistics.connectionState,
+                            connectionState: connectionState,
                             isDisconnecting: isDisconnecting,
                             onCancelConnection: handleCancelConnection,
                             onDisconnect: handleDisconnect
@@ -100,7 +98,7 @@ struct MonitoringTab: View {
                 .cornerRadius(16)
 
                 // Network Statistics
-                if case .connected = vpnStatistics.connectionState {
+                if case .connected = connectionState {
                     VStack(alignment: .leading, spacing: 16) {
                         Label("Network Statistics", systemImage: "chart.bar.fill")
                             .font(.headline)
@@ -110,14 +108,14 @@ struct MonitoringTab: View {
                                 icon: "arrow.down.circle.fill",
                                 iconColor: .green,
                                 label: "Downloaded",
-                                value: vpnStatistics.formattedBytesReceived
+                                value: stats.formattedBytesReceived
                             )
 
                             StatisticRow(
                                 icon: "arrow.up.circle.fill",
                                 iconColor: .blue,
                                 label: "Uploaded",
-                                value: vpnStatistics.formattedBytesSent
+                                value: stats.formattedBytesSent
                             )
 
                             Divider()
@@ -126,25 +124,15 @@ struct MonitoringTab: View {
                                 icon: "arrow.down",
                                 iconColor: .green,
                                 label: "Download Speed",
-                                value: vpnStatistics.formattedDownloadSpeed
+                                value: stats.formattedDownloadSpeed
                             )
 
                             StatisticRow(
                                 icon: "arrow.up",
                                 iconColor: .blue,
                                 label: "Upload Speed",
-                                value: vpnStatistics.formattedUploadSpeed
+                                value: stats.formattedUploadSpeed
                             )
-
-                            if let ping = vpnStatistics.ping {
-                                Divider()
-                                StatisticRow(
-                                    icon: "timer",
-                                    iconColor: .orange,
-                                    label: "Ping",
-                                    value: "\(ping) ms"
-                                )
-                            }
                         }
                         .padding()
                         .background(Color.gray.opacity(0.05))
@@ -160,9 +148,9 @@ struct MonitoringTab: View {
                             .font(.headline)
 
                         VStack(spacing: 12) {
-                            DetailRow(label: "Protocol", value: vpnStatistics.protocolType ?? "UDP")
-                            DetailRow(label: "Port", value: vpnStatistics.port.map(String.init) ?? "1194")
-                            DetailRow(label: "Cipher", value: vpnStatistics.cipher ?? "AES-128-CBC")
+                            DetailRow(label: "Protocol", value: serverInfo.protocolType ?? "OpenVPN")
+                            DetailRow(label: "Port", value: serverInfo.port.map(String.init) ?? "1194")
+                            DetailRow(label: "Cipher", value: serverInfo.cipher ?? "AES-128-CBC")
 
                             if let str = connectedSinceString {
                                 DetailRow(label: "Connected Since", value: str)
@@ -177,7 +165,7 @@ struct MonitoringTab: View {
                     .cornerRadius(16)
                 }
 
-                if case .disconnected = vpnStatistics.connectionState {
+                if case .disconnected = connectionState {
                     VStack(spacing: 16) {
                         Image(systemName: "wifi.slash")
                             .font(.system(size: 48))

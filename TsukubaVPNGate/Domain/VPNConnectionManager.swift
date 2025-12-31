@@ -1,31 +1,9 @@
 import Foundation
 
-// MARK: - Connection State
-
-enum VPNConnectionState: Equatable {
-    case disconnected
-    case connecting(VPNServer)
-    case connected(VPNServer)
-    case disconnecting
-    case error(String)
-}
-
-extension VPNConnectionState {
-    var idString: String {
-        switch self {
-        case .disconnected: return "disconnected"
-        case .connecting(let server): return "connecting_\(server.id)"
-        case .connected(let server): return "connected_\(server.id)"
-        case .disconnecting: return "disconnecting"
-        case .error(let message): return "error_\(message)"
-        }
-    }
-}
-
 // MARK: - Protocol (ISP: Interface segregation - only connection management)
 
 protocol VPNConnectionManagerProtocol {
-    var currentState: VPNConnectionState { get }
+    var currentState: ConnectionState { get }
     func connect(to server: VPNServer, enableRetry: Bool) async throws
     func disconnect() async throws
     func cancelConnection() async
@@ -33,27 +11,38 @@ protocol VPNConnectionManagerProtocol {
 
 // MARK: - Implementation (SRP: Single responsibility - VPN lifecycle management)
 
+/// Manages VPN connection lifecycle.
+/// Owns the connection state - sets it directly on MonitoringStore.
+/// Controls VPNMonitor lifecycle (start/stop monitoring).
 final class VPNConnectionManager: VPNConnectionManagerProtocol {
     private let controller: VPNControlling
     private let telemetry: TelemetryProtocol
+    private let monitoringStore: MonitoringStore
+    private let vpnMonitor: VPNMonitor
     
-    private(set) var currentState: VPNConnectionState = .disconnected {
-        didSet {
-            if oldValue != currentState {
-                print("🔄 [VPNConnectionManager] State changed: \(oldValue.idString) → \(currentState.idString)")
-                onStateChange?(currentState)
-            }
-        }
+    /// Tracks the current connection Task for cancellation support
+    private var connectionTask: Task<Void, Error>?
+    
+    /// Current server (for retry and reconnect logic)
+    private var currentServer: VPNServer?
+    
+    var currentState: ConnectionState {
+        monitoringStore.connectionState
     }
-    var onStateChange: ((VPNConnectionState) -> Void)?
+    
+    var onStateChange: ((ConnectionState) -> Void)?
     
     init(
         controller: VPNControlling,
         backend: UserPreferences.VPNProvider = .openVPN,
-        telemetry: TelemetryProtocol
+        telemetry: TelemetryProtocol,
+        monitoringStore: MonitoringStore,
+        vpnMonitor: VPNMonitor
     ) {
         self.controller = controller
         self.telemetry = telemetry
+        self.monitoringStore = monitoringStore
+        self.vpnMonitor = vpnMonitor
         print("🎯 [VPNConnectionManager] Initialized with \(backend.displayName) backend")
     }
     
@@ -61,20 +50,40 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     func connect(to server: VPNServer, enableRetry: Bool = true) async throws {
         print("🔗 [VPNConnectionManager] Connecting to: \(server.countryLong)")
         
+        // Cancel any existing connection attempt
+        connectionTask?.cancel()
+        currentServer = server
+        
+        // Store the current task for cancellation
+        let task = Task {
+            try await performConnection(to: server, enableRetry: enableRetry)
+        }
+        connectionTask = task
+        
+        // Wait for completion or cancellation
+        try await task.value
+    }
+    
+    /// Internal connection logic (extracted for Task wrapping)
+    private func performConnection(to server: VPNServer, enableRetry: Bool) async throws {
         let startTime = Date()
         var actualRetryCount = 0
         
+        // Set state and start monitoring
         await MainActor.run {
-            currentState = .connecting(server)
+            monitoringStore.setConnecting(server: server)
+            onStateChange?(.connecting)
         }
+        vpnMonitor.startMonitoring()
         
         do {
+            // Check for cancellation before starting
+            try Task.checkCancellation()
+            
             // Use retry logic for better reliability with flaky servers
             if enableRetry, let openVPNController = controller as? OpenVPNController {
                 try await openVPNController.connectWithRetry(server: server)
-                // TODO: Get actual retry count from policy if needed
             } else {
-                // Fallback to direct connection (for non-OpenVPN controllers or when retry disabled)
                 try await controller.connect(server: server)
             }
             
@@ -90,11 +99,23 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
                     retryCount: actualRetryCount,
                     failureReason: nil
                 )
-                currentState = .connected(server)
+                monitoringStore.setConnected()
+                onStateChange?(.connected)
             }
+        } catch is CancellationError {
+            print("🛑 [VPNConnectionManager] Connection cancelled by user")
+            vpnMonitor.forceStop()
+            await MainActor.run {
+                monitoringStore.setDisconnected()
+                onStateChange?(.disconnected)
+            }
+            // Don't throw - user cancellation is intentional, not an error
+            return
         } catch {
             let connectionTime = Date().timeIntervalSince(startTime)
             print("❌ [VPNConnectionManager] Connection failed: \(error.localizedDescription)")
+            
+            vpnMonitor.forceStop()
             
             // Record failed connection
             await MainActor.run {
@@ -105,7 +126,8 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
                     retryCount: actualRetryCount,
                     failureReason: error.localizedDescription
                 )
-                currentState = .error(error.localizedDescription)
+                monitoringStore.setError(error.localizedDescription)
+                onStateChange?(.error(error.localizedDescription))
             }
             throw error
         }
@@ -114,24 +136,39 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     func cancelConnection() async {
         print("🛑 [VPNConnectionManager] Cancelling connection...")
         
+        // Cancel the connection Task (this will trigger CancellationError in retry loop)
+        connectionTask?.cancel()
+        connectionTask = nil
+        
+        // Stop monitoring immediately
+        vpnMonitor.forceStop()
+        
         await MainActor.run {
-            currentState = .disconnecting
+            monitoringStore.setDisconnecting()
+            onStateChange?(.disconnecting)
         }
         
-        // Cancel the controller's connection
+        // Kill any running openvpn process
         controller.cancelConnection()
         
         await MainActor.run {
-            currentState = .disconnected
+            monitoringStore.setDisconnected()
+            onStateChange?(.disconnected)
         }
+        
+        currentServer = nil
     }
     
     func disconnect() async throws {
         print("🔌 [VPNConnectionManager] Disconnecting...")
         
         await MainActor.run {
-            currentState = .disconnecting
+            monitoringStore.setDisconnecting()
+            onStateChange?(.disconnecting)
         }
+        
+        // Stop monitoring
+        vpnMonitor.forceStop()
         
         do {
             // Heavy work on background thread
@@ -139,16 +176,19 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
             print("✅ [VPNConnectionManager] Disconnected successfully")
             
             await MainActor.run {
-                currentState = .disconnected
+                monitoringStore.setDisconnected()
+                onStateChange?(.disconnected)
             }
         } catch {
             print("❌ [VPNConnectionManager] Disconnect failed: \(error.localizedDescription)")
             
             await MainActor.run {
-                currentState = .error(error.localizedDescription)
+                monitoringStore.setError(error.localizedDescription)
+                onStateChange?(.error(error.localizedDescription))
             }
             throw error
         }
+        
+        currentServer = nil
     }
 }
-

@@ -30,14 +30,21 @@ struct RetryPolicy {
     /// Execute an async operation with retry logic and exponential backoff
     /// - Parameter operation: The async throwing operation to execute
     /// - Returns: The result of the successful operation
-    /// - Throws: The last error encountered if all retries fail
+    /// - Throws: The last error encountered if all retries fail, or CancellationError if cancelled
     func execute<T>(_ operation: @escaping () async throws -> T) async throws -> T {
         var lastError: Error?
         
         for attempt in 0...maxRetries {
+            // Check for cancellation before each attempt
+            try Task.checkCancellation()
+            
             do {
                 // Attempt the operation
                 return try await operation()
+            } catch is CancellationError {
+                // Propagate cancellation immediately
+                print("🛑 [RetryPolicy] Operation cancelled")
+                throw CancellationError()
             } catch {
                 lastError = error
                 
@@ -53,7 +60,7 @@ struct RetryPolicy {
                 print("🔄 [RetryPolicy] Attempt \(attempt + 1)/\(maxRetries + 1) failed: \(error.localizedDescription)")
                 print("⏳ [RetryPolicy] Retrying in \(String(format: "%.1f", delay))s...")
                 
-                // Wait before retrying
+                // Wait before retrying (this throws CancellationError if Task is cancelled)
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
         }
