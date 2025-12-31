@@ -58,10 +58,10 @@ jobs:
       - name: Build and Archive
         run: |
           xcodebuild archive \
-            -project TsukubaVPNGate.xcodeproj \
-            -scheme TsukubaVPNGate \
+            -project GateAway.xcodeproj \
+            -scheme GateAway \
             -configuration Release \
-            -archivePath ./build/TsukubaVPNGate.xcarchive \
+            -archivePath ./build/GateAway.xcarchive \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
@@ -69,12 +69,12 @@ jobs:
       - name: Export App
         run: |
           mkdir -p ./build/exported
-          cp -R ./build/TsukubaVPNGate.xcarchive/Products/Applications/TsukubaVPNGate.app ./build/exported/
+          cp -R ./build/GateAway.xcarchive/Products/Applications/GateAway.app ./build/exported/
           
       - name: Create DMG
         run: |
           mkdir -p ./build/dmg_root
-          cp -R ./build/exported/TsukubaVPNGate.app ./build/dmg_root/
+          cp -R ./build/exported/GateAway.app ./build/dmg_root/
           ln -s /Applications ./build/dmg_root/Applications
           hdiutil create -volname "GateAway" -srcfolder ./build/dmg_root -ov -format UDZO GateAway.dmg
 

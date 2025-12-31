@@ -1,8 +1,16 @@
 # GateAway - macOS Menu Bar VPN Client
 
-A native and lightweight macOS menu bar application for connecting to [VPNGate](https://www.vpngate.net/) servers. Simple, fast, and privacy-focused.
+<p align="center">
+  <img src="asset/GateAway.png" alt="GateAway Logo" width="200">
+</p>
 
+<p align="center">
+A native and lightweight macOS menu bar application for connecting to <a href="https://www.vpngate.net/">VPNGate</a> servers. Simple, fast, and privacy-focused.
+</p>
+
+<p align="center">
 <img src="https://img.shields.io/badge/platform-macOS-blue" alt="Platform: macOS"> <img src="https://img.shields.io/badge/macOS-11.0+-green" alt="macOS 11.0+">
+</p>
 
 ## Features
 
@@ -36,7 +44,7 @@ Download the latest `.dmg` from the [Releases](https://github.com/realdavian/mac
 ```bash
 git clone https://github.com/realdavian/mac-util-vpn-menu-app.git
 cd mac-util-vpn-menu-app
-open TsukubaVPNGate.xcodeproj
+open GateAway.xcodeproj
 # Press Cmd + R to build and run
 ```
 

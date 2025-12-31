@@ -21,9 +21,8 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>TsukubaVPNGate needs to control Tunnelblick to connect and disconnect VPN servers automatically.</string>
+	<string>GateAway needs to control OpenVPN CLI to connect and disconnect VPN servers automatically.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>
 </dict>
 </plist>
-

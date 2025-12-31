@@ -11,4 +11,4 @@ import SwiftUI
 // a Wi‑Fi-style menu bar app that supports older macOS versions.
 //
 // Keeping this file (without `@main`) avoids Xcode project sync issues.
-struct TsukubaVPNGateSwiftUIPlaceholder { }
+struct GateAwaySwiftUIPlaceholder { }
