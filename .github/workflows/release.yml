@@ -76,12 +76,12 @@ jobs:
           mkdir -p ./build/dmg_root
           cp -R ./build/exported/TsukubaVPNGate.app ./build/dmg_root/
           ln -s /Applications ./build/dmg_root/Applications
-          hdiutil create -volname "TsukubaVPNGate" -srcfolder ./build/dmg_root -ov -format UDZO TsukubaVPNGate.dmg
+          hdiutil create -volname "GateAway" -srcfolder ./build/dmg_root -ov -format UDZO GateAway.dmg
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: TsukubaVPNGate.dmg
+          files: GateAway.dmg
           tag_name: ${{ steps.version.outputs.version }}
           name: GateAway ${{ steps.version.outputs.version }}
           draft: false

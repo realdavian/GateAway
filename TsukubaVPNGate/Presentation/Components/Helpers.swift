@@ -2,7 +2,7 @@ import SwiftUI
 
 extension Bundle {
     static var identifier: String {
-        return main.bundleIdentifier ?? "com.davian.TsukubaVPNGateApp"
+        return main.bundleIdentifier ?? "com.davian.GateAway"
     }
 }
 

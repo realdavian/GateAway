@@ -1,4 +1,4 @@
-# TsukubaVPNGate - macOS Menu Bar VPN Client
+# GateAway - macOS Menu Bar VPN Client
 
 A native and lightweight macOS menu bar application for connecting to [VPNGate](https://www.vpngate.net/) servers. Simple, fast, and privacy-focused.
 
@@ -24,16 +24,21 @@ A native and lightweight macOS menu bar application for connecting to [VPNGate](
 
 ## Getting Started
 
-### 1. Build from Source
-Since this is an open-source project, you can build it yourself using Xcode:
+### 1. Download
+Download the latest `.dmg` from the [Releases](https://github.com/realdavian/mac-util-vpn-menu-app/releases) page.
 
-1. Clone or download this repository.
-2. Open `TsukubaVPNGate.xcodeproj` in Xcode.
-3. Press **Cmd + R** to run the application.
+### 2. Install
+1. Open the DMG and drag the app to **Applications**.
+2. **Right-click** the app → **Open** (required for unsigned apps).
+3. Click **Open** again in the warning dialog.
 
-### 2. First Launch
-- The app will appear in your menu bar (top right) as a small shield or network icon.
-- On your first connection attempt, the app may ask for your administrator password once to install the OpenVPN helper.
+### 3. Build from Source (Optional)
+```bash
+git clone https://github.com/realdavian/mac-util-vpn-menu-app.git
+cd mac-util-vpn-menu-app
+open TsukubaVPNGate.xcodeproj
+# Press Cmd + R to build and run
+```
 
 ---
 
@@ -51,13 +56,12 @@ Since this is an open-source project, you can build it yourself using Xcode:
 
 ## Privacy
 
-TsukubaVPNGate is built with privacy in mind:
+GateAway is built with privacy in mind:
 - All connection metrics and history stay strictly on your local machine.
 - No external tracking, analytics, or third-party servers are involved in your data flow.
 - It is a direct interface between your Mac and the public VPNGate network.
 
-> **Server Logging Disclaimer**: TsukubaVPNGate connects to servers provided by volunteers in the [VPNGate](https://www.vpngate.net) network. While this application does not track your activity, individual server operators (volunteers) may keep their own logs. We have no control over the logging policies of these volunteer servers. Always use the service responsibly and in accordance with local laws.
-
+> **Server Logging Disclaimer**: GateAway connects to servers provided by volunteers in the [VPNGate](https://www.vpngate.net) network. While this application does not track your activity, individual server operators (volunteers) may keep their own logs. We have no control over the logging policies of these volunteer servers. Always use the service responsibly and in accordance with local laws.
 
 ---
 

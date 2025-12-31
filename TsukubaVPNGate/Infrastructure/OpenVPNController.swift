@@ -77,7 +77,7 @@ final class OpenVPNController: VPNControlling {
         
         // Setup directories
         let homeDir = fileManager.homeDirectoryForCurrentUser
-        configDirectory = homeDir.appendingPathComponent(".tsukuba-vpn").path
+        configDirectory = homeDir.appendingPathComponent(".gateaway").path
         pidFilePath = "\(configDirectory)/openvpn.pid"
         logFilePath = "\(configDirectory)/openvpn.log"
         managementSocketPath = "\(configDirectory)/openvpn.sock"
