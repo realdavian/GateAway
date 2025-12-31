@@ -1,0 +1,62 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  build-and-release:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: 'latest-stable'
+
+      - name: Build and Archive
+        run: |
+          xcodebuild archive \
+            -project TsukubaVPNGate.xcodeproj \
+            -scheme TsukubaVPNGate \
+            -configuration Release \
+            -archivePath ./build/TsukubaVPNGate.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Export App
+        run: |
+          mkdir -p ./build/exported
+          cp -R ./build/TsukubaVPNGate.xcarchive/Products/Applications/TsukubaVPNGate.app ./build/exported/
+          
+      - name: Create Zip
+        run: |
+          cd ./build/exported
+          zip -r ../../TsukubaVPNGate.zip TsukubaVPNGate.app
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: TsukubaVPNGate.zip
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          body: |
+            ## TsukubaVPNGate ${{ github.ref_name }}
+            
+            This is an automated build of TsukubaVPNGate.
+            
+            **Note for macOS users:**
+            This app is unsigned. To run it:
+            1. Download and unzip `TsukubaVPNGate.zip`.
+            2. **Right-click** `TsukubaVPNGate.app` and select **Open**.
+            3. Click **Open** again in the warning dialog.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
