@@ -47,18 +47,28 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: TsukubaVPNGate.dmg
-          name: Release ${{ github.ref_name }}
+          name: TsukubaVPNGate ${{ github.ref_name }}
           draft: false
-          prerelease: false
+          prerelease: true
           body: |
-            ## TsukubaVPNGate ${{ github.ref_name }}
+            ## 🚀 TsukubaVPNGate ${{ github.ref_name }} - Beta Release
             
-            This is an automated build of TsukubaVPNGate.
+            This is the first public beta release of TsukubaVPNGate, a native macOS menu bar VPN client for [VPNGate](https://www.vpngate.net/).
             
-            **Note for macOS users:**
-            This app is unsigned. To run it:
-            1. Download and open `TsukubaVPNGate.dmg`.
-            2. **Right-click** `TsukubaVPNGate.app` inside the disk image and select **Open**.
-            3. Click **Open** again in the warning dialog.
+            ### Features
+            - One-click connect to best VPN server
+            - WiFi-style menu bar interface
+            - Real-time connection statistics
+            - Touch ID authentication support
+            - Smart server selection with parallel testing
+            
+            ### Installation
+            1. Download `TsukubaVPNGate.dmg`
+            2. Open the DMG and drag the app to **Applications**
+            3. **Right-click** the app → **Open** (required for unsigned apps)
+            4. Click **Open** again in the Gatekeeper warning
+            
+            ### ⚠️ Note
+            This is an unsigned beta build for testing. Please report any issues on GitHub!
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
