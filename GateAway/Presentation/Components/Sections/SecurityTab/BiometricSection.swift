@@ -103,7 +103,7 @@ struct SecurityTabBiometricSection: View {
         do {
             try keychainManager.deletePassword()
             isPasswordStored = false
-            print("✅ Password removed from Keychain")
+            Log.success("Password removed from Keychain")
         } catch {
             testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
             showingTestResult = true

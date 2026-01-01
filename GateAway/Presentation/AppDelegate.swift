@@ -1,20 +1,22 @@
 import AppKit
 
-// MARK: - App Delegate (Presentation Layer - SRP: App lifecycle & dependency injection)
-
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    // MARK: - Services (Composition Root - all dependencies created here)
+    
+    // MARK: - Services
+    
     private let keychainManager = KeychainManager()
     private let cacheManager = ServerCacheManager()
     private let telemetry = ConnectionTelemetry()
     
-    // MARK: - Stores (ObservableObjects shared with Views)
+    // MARK: - Stores
+    
     private let monitoringStore = MonitoringStore()
     private lazy var serverStore = ServerStore(cache: cacheManager)
     private lazy var vpnMonitor = VPNMonitor()
     
     // MARK: - UI Components
+    
     private var statusBarController: StatusBarController?
     private var coordinator: AppCoordinator?
     private var connectionManager: VPNConnectionManager?
@@ -26,46 +28,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func applicationWillTerminate(_ notification: Notification) {
-        // Cleanup: disconnect VPN on app quit (best-effort, no password prompt)
-        print("🧹 [AppDelegate] App terminating - cleaning up VPN...")
+        Log.info("App terminating - cleaning up VPN...")
         Task {
             try? await connectionManager?.disconnect()
         }
     }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // Hide Dock icon in Release builds (menu-bar-only app)
-#if !DEBUG
+        #if !DEBUG
         NSApp.setActivationPolicy(.accessory)
-#endif
+        #endif
         
-        // Store preferences manager for backend switching
         self.preferencesManager = PreferencesManager()
-        
-        // Setup VPN backend
         setupVPNBackend()
         
-        // Pre-fetch server list for instant availability
         Task { serverStore.warmupCache() }
         
-        // Listen for backend switch notifications from Settings
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleBackendSwitchNotification(_:)),
             name: NSNotification.Name("SwitchVPNBackend"),
             object: nil
         )
-        
-        // Initial server list refresh (moved to setupVPNBackend)
-        // Will happen after coordinator is created
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        // Menu-bar apps should keep running without windows
         return false
     }
     
-    // MARK: - Dynamic Backend Switching
+    // MARK: - Backend Switching
     
     @objc private func handleBackendSwitchNotification(_ notification: Notification) {
         guard let provider = notification.userInfo?["provider"] as? UserPreferences.VPNProvider else {
@@ -76,10 +67,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     func switchVPNBackend(to newBackend: UserPreferences.VPNProvider) {
-        print("🔄 [AppDelegate] Switching VPN backend to: \(newBackend.displayName)")
+        Log.info("Switching VPN backend to: \(newBackend.displayName)")
         
-        
-        // Disconnect current VPN if connected
         Task {
             do {
                 try await connectionManager?.disconnect()
@@ -87,7 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.setupVPNBackend()
                 }
             } catch {
-                print("⚠️ [AppDelegate] Failed to disconnect: \(error)")
+                Log.warning("Failed to disconnect: \(error)")
                 await MainActor.run {
                     self.setupVPNBackend()
                 }
@@ -100,20 +89,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         
         let preferences = preferencesManager.loadPreferences()
         
-        // Check if backend changed
         if let currentBackend = currentBackend, currentBackend == preferences.vpnProvider {
-            print("ℹ️ [AppDelegate] Backend unchanged (\(preferences.vpnProvider.displayName))")
+            Log.debug("Backend unchanged (\(preferences.vpnProvider.displayName))")
             return
         }
         
         self.currentBackend = preferences.vpnProvider
         
-        // Create OpenVPN controller with injected dependencies
         let vpnController: VPNControlling = OpenVPNController(
             vpnMonitor: vpnMonitor,
             keychainManager: keychainManager
         )
-        print("🔧 [AppDelegate] Using OpenVPN CLI backend")
+        Log.debug("Using OpenVPN CLI backend")
         
         let connectionManager = VPNConnectionManager(
             controller: vpnController,
@@ -124,12 +111,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         self.connectionManager = connectionManager
         
-        // Set up MonitoringStore subscription to VPNMonitor stats
         Task { @MainActor in
             monitoringStore.subscribe(to: vpnMonitor.statsPublisher)
         }
         
-        // Create or update coordinator
         let selectionService: ServerSelectionServiceProtocol = ServerSelectionService()
         
         let coordinator = AppCoordinator(
@@ -140,7 +125,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         self.coordinator = coordinator
         
-        // Create or update UI
         if statusBarController == nil {
             let controller = StatusBarController(
                 coordinator: coordinator,
@@ -153,46 +137,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             )
             self.statusBarController = controller
             
-            // Initial server list refresh
-            print("🚀 [AppDelegate] Starting initial server refresh...")
+            Log.info("Starting initial server refresh...")
             Task {
                 do {
                     try await coordinator.refreshServerList()
-                    print("✅ [AppDelegate] Initial refresh succeeded, rebuilding menu...")
+                    Log.success("Initial refresh succeeded, rebuilding menu...")
                     await MainActor.run {
                         controller.rebuildMenu()
                     }
                 } catch {
-                    print("⚠️ [AppDelegate] Initial server refresh failed: \(error.localizedDescription)")
+                    Log.warning("Initial server refresh failed: \(error.localizedDescription)")
                 }
             }
         } else {
-            // Update existing status bar controller with new coordinator
             statusBarController?.updateCoordinator(coordinator)
             
-            // Refresh server list for updated coordinator
-            print("🚀 [AppDelegate] Refreshing server list after backend switch...")
+            Log.debug("Refreshing server list after backend switch...")
             Task {
                 do {
                     try await coordinator.refreshServerList()
-                    print("✅ [AppDelegate] Refresh succeeded")
+                    Log.success("Refresh succeeded")
                     await MainActor.run {
                         self.statusBarController?.rebuildMenu()
                     }
                 } catch {
-                    print("⚠️ [AppDelegate] Refresh failed: \(error.localizedDescription)")
+                    Log.warning("Refresh failed: \(error.localizedDescription)")
                 }
             }
         }
-        // Monitor connection state changes and update UI
-        // (Must be outside if/else to work on both first init and backend switch)
+        
         connectionManager.onStateChange = { [weak self] newState in
-            print("🎨 [AppDelegate] UI update triggered for state: \(newState.idString)")
+            Log.debug("UI update triggered for state: \(newState.idString)")
             Task { @MainActor in
                 self?.statusBarController?.rebuildMenu()
-                
-                // Immediately start monitoring to update UI
-                // Note: Settings tabs manage VPNMonitor.startMonitoring() via onAppear/onDisappear
                 self?.vpnMonitor.startMonitoring()
             }
         }

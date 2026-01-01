@@ -257,7 +257,7 @@ struct ServersTab: View {
                 filterAndSortServers()
             }
             .onChange(of: monitoringStore.serverInfo.serverName) { newName in
-                print("🔄 [ServersTab] Connected server name changed to: \(newName ?? "nil")")
+                Log.debug("Connected server name changed to: \(newName ?? "nil")")
             }
             .sheet(item: $serverToBlacklist) { server in
                 AddToBlacklistView(preselectedServer: server) { server, reason, expiry in
@@ -346,7 +346,7 @@ struct ServersTab: View {
         coordinatorWrapper.connect(to: server) { result in
             switch result {
             case .success:
-                print("✅ Connected to \(server.countryLong)")
+                Log.success("Connected to \(server.countryLong)")
             case .failure(let error):
                 self.activeAlert = .error(error.localizedDescription)
             }

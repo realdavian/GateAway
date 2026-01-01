@@ -91,7 +91,7 @@ struct OverviewTabBackendSection: View {
                         openVPNVersion = String(firstLine[versionRange])
                     }
                 } catch {
-                    print("Failed to get OpenVPN version")
+                    Log.warning("Failed to get OpenVPN version")
                 }
                 
                 return

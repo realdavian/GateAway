@@ -1,16 +1,26 @@
 import Foundation
 
-// MARK: - Blacklist Manager Protocol
+// MARK: - Protocol
 
+/// Manages temporary blacklisting of VPN servers
 protocol BlacklistManagerProtocol {
+    /// Checks if a server is currently blacklisted
     func isBlacklisted(_ server: VPNServer) -> Bool
+    
+    /// Adds a server to the blacklist with reason and expiry
     func addToBlacklist(_ server: VPNServer, reason: String, expiry: BlacklistExpiry)
+    
+    /// Removes a server from the blacklist
     func removeFromBlacklist(serverId: String)
+    
+    /// Returns all blacklisted servers
     func getAllBlacklisted() -> [BlacklistedServer]
+    
+    /// Removes expired entries from the blacklist
     func cleanupExpired()
 }
 
-// MARK: - Blacklist Manager Implementation
+// MARK: - Implementation
 
 final class BlacklistManager: BlacklistManagerProtocol {
     
@@ -19,15 +29,11 @@ final class BlacklistManager: BlacklistManagerProtocol {
     
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-        
-        // Auto-cleanup expired entries on init
         cleanupExpired()
     }
     
     func isBlacklisted(_ server: VPNServer) -> Bool {
         let blacklist = getAllBlacklisted()
-        
-        // Check if server is blacklisted and not expired
         return blacklist.contains { blacklisted in
             blacklisted.id == server.ip && !blacklisted.isExpired
         }
@@ -35,11 +41,8 @@ final class BlacklistManager: BlacklistManagerProtocol {
     
     func addToBlacklist(_ server: VPNServer, reason: String, expiry: BlacklistExpiry) {
         var blacklist = getAllBlacklisted()
-        
-        // Remove if already exists
         blacklist.removeAll { $0.id == server.ip }
         
-        // Add new entry
         let expiryDate = expiry.expiryDate(from: Date())
         let blacklisted = BlacklistedServer(
             id: server.ip,
@@ -52,11 +55,9 @@ final class BlacklistManager: BlacklistManagerProtocol {
         )
         
         blacklist.append(blacklisted)
-        
-        // Save
         saveBlacklist(blacklist)
         
-        print("🚫 [Blacklist] Added \(server.ip) (\(server.countryLong)) - Expires: \(blacklisted.expiryDescription)")
+        Log.debug("Blacklisted \(server.ip) (\(server.countryLong)) - Expires: \(blacklisted.expiryDescription)")
     }
     
     func removeFromBlacklist(serverId: String) {
@@ -64,7 +65,7 @@ final class BlacklistManager: BlacklistManagerProtocol {
         blacklist.removeAll { $0.id == serverId }
         saveBlacklist(blacklist)
         
-        print("✅ [Blacklist] Removed \(serverId)")
+        Log.debug("Removed \(serverId) from blacklist")
     }
     
     func getAllBlacklisted() -> [BlacklistedServer] {
@@ -82,7 +83,7 @@ final class BlacklistManager: BlacklistManagerProtocol {
         
         if active.count < blacklist.count {
             saveBlacklist(active)
-            print("🧹 [Blacklist] Cleaned up \(blacklist.count - active.count) expired entries")
+            Log.debug("Cleaned up \(blacklist.count - active.count) expired blacklist entries")
         }
     }
     
@@ -94,4 +95,3 @@ final class BlacklistManager: BlacklistManagerProtocol {
         }
     }
 }
-

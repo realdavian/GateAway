@@ -2,7 +2,7 @@ import Foundation
 import AppKit
 import os
 
-enum TsukubaError: LocalizedError {
+enum GateAwayError: LocalizedError {
     case network(String)
     case vpn(String)
     case system(String)
@@ -34,7 +34,6 @@ final class ErrorService {
     
     @MainActor
     func present(_ error: Error) {
-        // Log it first
         log(error)
         
         let alert = NSAlert()
@@ -43,11 +42,10 @@ final class ErrorService {
         alert.alertStyle = .warning
         alert.addButton(withTitle: "OK")
         
-        // Handle special cases (like permissions)
-        if let tsukubaError = error as? TsukubaError, case .permission(let msg) = tsukubaError {
-             alert.messageText = "Permission Required"
-             alert.informativeText = msg
-             alert.addButton(withTitle: "Open Settings")
+        if let gateAwayError = error as? GateAwayError, case .permission(let msg) = gateAwayError {
+            alert.messageText = "Permission Required"
+            alert.informativeText = msg
+            alert.addButton(withTitle: "Open Settings")
         }
         
         if let window = NSApp.keyWindow {

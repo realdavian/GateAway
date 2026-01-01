@@ -1,26 +1,26 @@
 import Foundation
 
-/// Generic retry policy with exponential backoff for resilient async operations
+/// Generic retry policy with exponential backoff
 struct RetryPolicy {
     let maxRetries: Int
     let baseDelay: TimeInterval
     let maxDelay: TimeInterval
     
-    /// Default policy: 3 retries with exponential backoff (1s, 2s, 4s)
+    /// Default: 3 retries with exponential backoff (1s, 2s, 4s)
     nonisolated static let `default` = RetryPolicy(
         maxRetries: 3,
         baseDelay: 1.0,
         maxDelay: 10.0
     )
     
-    /// Conservative policy: 2 retries with shorter delays
+    /// Conservative: 2 retries with shorter delays
     nonisolated static let conservative = RetryPolicy(
         maxRetries: 2,
         baseDelay: 0.5,
         maxDelay: 5.0
     )
     
-    /// Aggressive policy: 5 retries for very flaky connections
+    /// Aggressive: 5 retries for very flaky connections
     nonisolated static let aggressive = RetryPolicy(
         maxRetries: 5,
         baseDelay: 1.0,
@@ -35,37 +35,30 @@ struct RetryPolicy {
         var lastError: Error?
         
         for attempt in 0...maxRetries {
-            // Check for cancellation before each attempt
             try Task.checkCancellation()
             
             do {
-                // Attempt the operation
                 return try await operation()
             } catch is CancellationError {
-                // Propagate cancellation immediately
-                print("🛑 [RetryPolicy] Operation cancelled")
+                Log.info("Operation cancelled")
                 throw CancellationError()
             } catch {
                 lastError = error
                 
-                // Don't retry if we've exhausted attempts
                 guard attempt < maxRetries else {
-                    print("🔄 [RetryPolicy] All \(maxRetries) retry attempts exhausted")
+                    Log.warning("All \(maxRetries) retry attempts exhausted")
                     break
                 }
                 
-                // Calculate delay with exponential backoff: baseDelay * 2^attempt
                 let delay = min(baseDelay * pow(2.0, Double(attempt)), maxDelay)
                 
-                print("🔄 [RetryPolicy] Attempt \(attempt + 1)/\(maxRetries + 1) failed: \(error.localizedDescription)")
-                print("⏳ [RetryPolicy] Retrying in \(String(format: "%.1f", delay))s...")
+                Log.debug("Attempt \(attempt + 1)/\(maxRetries + 1) failed: \(error.localizedDescription)")
+                Log.debug("Retrying in \(String(format: "%.1f", delay))s...")
                 
-                // Wait before retrying (this throws CancellationError if Task is cancelled)
                 try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
         }
         
-        // If we get here, all retries failed
         throw lastError ?? NSError(
             domain: "RetryPolicy",
             code: -1,

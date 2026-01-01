@@ -1,10 +1,7 @@
 import Foundation
 import Combine
 
-// MARK: - Coordinator Wrapper (Bridge between protocol and SwiftUI)
-
-/// Wrapper to make AppCoordinatorProtocol compatible with SwiftUI @EnvironmentObject
-/// This is a thin bridge - all logic remains in AppCoordinator (DRY principle)
+/// Bridge between AppCoordinatorProtocol and SwiftUI @EnvironmentObject
 final class CoordinatorWrapper: ObservableObject {
     private let coordinator: AppCoordinatorProtocol
     
@@ -12,10 +9,10 @@ final class CoordinatorWrapper: ObservableObject {
         self.coordinator = coordinator
     }
     
-    // MARK: - Connection Methods (forwarded to coordinator)
+    // MARK: - Connection Methods
     
     func connect(to server: VPNServer, completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🚀 [CoordinatorWrapper] Connecting to server: \(server.countryLong)")
+        Log.debug("Connecting to server: \(server.countryLong)")
         Task {
             do {
                 try await coordinator.connectToServer(server)
@@ -31,7 +28,7 @@ final class CoordinatorWrapper: ObservableObject {
     }
     
     func disconnect(completion: @escaping (Result<Void, Error>) -> Void) {
-        print("🚀 [CoordinatorWrapper] Disconnecting from server")
+        Log.debug("Disconnecting from server")
         Task {
             do {
                 try await coordinator.disconnect()

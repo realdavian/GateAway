@@ -1,13 +1,18 @@
 import Foundation
 
-// MARK: - Protocol (DIP: Depend on abstractions)
+// MARK: - Protocol
 
+/// Fetches VPN server list from VPNGate API
 protocol VPNGateAPIProtocol {
+    /// Fetches all available VPN servers
+    /// - Returns: Array of VPN servers parsed from API
+    /// - Throws: Network or parsing errors
     func fetchServers() async throws -> [VPNServer]
 }
 
 // MARK: - Domain Model
 
+/// Represents a VPN server from VPNGate
 struct VPNServer: Identifiable, Hashable, Codable {
     let id: String
     let hostName: String
@@ -19,65 +24,53 @@ struct VPNServer: Identifiable, Hashable, Codable {
     let speedBps: Int?
     let openVPNConfigBase64: String
     
+    /// Speed in Mbps, nil if unavailable
     var speedMbps: Int? {
         guard let bps = speedBps, bps > 0 else { return nil }
         return Int(Double(bps) / 1_000_000.0)
     }
 }
 
-// MARK: - Implementation (SRP: Single responsibility - fetch VPNGate server list)
+// MARK: - Implementation
 
 final class VPNGateAPI: VPNGateAPIProtocol {
     private let endpoint = URL(string: "https://www.vpngate.net/api/iphone/")!
     
-    // MARK: - Async/Await API (Modern)
-    
     func fetchServers() async throws -> [VPNServer] {
-        print("🌐 VPNGateAPI: Fetching from \(endpoint) (async)")
+        Log.info("Fetching from \(endpoint)")
         
         var request = URLRequest(url: endpoint)
         request.cachePolicy = .reloadIgnoringLocalCacheData
         request.timeoutInterval = 20
         
         let (data, _) = try await URLSession.shared.data(for: request)
-        print("📦 VPNGateAPI: Received \(data.count) bytes")
+        Log.debug("Received \(data.count) bytes")
         
         guard let text = String(data: data, encoding: .utf8) else {
             throw NSError(domain: "VPNGateAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid response encoding"])
         }
         
         let servers = try Self.parseCSV(text)
-        print("✅ VPNGateAPI: Parsed \(servers.count) servers")
+        Log.success("Parsed \(servers.count) servers")
         return servers
     }
     
-    // MARK: - Private CSV Parser
+    // MARK: - CSV Parser
     
     private static func parseCSV(_ text: String) throws -> [VPNServer] {
         let lines = text
             .split(whereSeparator: \.isNewline)
             .map(String.init)
         
-        print("🔍 CSV Parser: Total lines: \(lines.count)")
+        Log.debug("CSV Parser: Total lines: \(lines.count)")
         
-        // VPNGate format:
-        // Line 0: *vpn_servers (marker)
-        // Line 1: #HostName,IP,Score,... (header with # prefix)
-        // Line 2+: data rows
-        // Last: * (footer)
-        
-        // Find header line (starts with # and contains column names)
         guard let headerIndex = lines.firstIndex(where: { $0.hasPrefix("#") && $0.contains(",") }) else {
-            print("❌ CSV Parser: No header found!")
+            Log.error("CSV Parser: No header found!")
             return []
         }
         
-        // Strip the # prefix from the header
         let headerLine = String(lines[headerIndex].dropFirst())
-        print("🔍 CSV Parser: Header at line \(headerIndex): \(headerLine.prefix(100))...")
-        
         let header = parseCSVLine(headerLine)
-        print("🔍 CSV Parser: Parsed \(header.count) columns: \(header.prefix(10))")
         
         let columnIndex: [String: Int] = Dictionary(uniqueKeysWithValues: header.enumerated().map { ($0.element, $0.offset) })
         
@@ -93,18 +86,12 @@ final class VPNGateAPI: VPNGateAPIProtocol {
         
         var result: [VPNServer] = []
         var skippedCount = 0
-        var parsedCount = 0
         
         for i in (headerIndex + 1)..<lines.count {
             let line = lines[i]
             if line.hasPrefix("#") { continue }
-            if line.hasPrefix("*") { 
-                print("🔍 CSV Parser: Found footer marker at line \(i)")
-                break 
-            }
+            if line.hasPrefix("*") { break }
             if line.trimmingCharacters(in: .whitespaces).isEmpty { continue }
-            
-            parsedCount += 1
             
             let row = parseCSVLine(line)
             let host = get(row, "HostName")
@@ -118,9 +105,6 @@ final class VPNGateAPI: VPNGateAPIProtocol {
             
             if host.isEmpty || ip.isEmpty || ovpn.isEmpty {
                 skippedCount += 1
-                if skippedCount <= 3 {
-                    print("⚠️ CSV Parser: Skipping row \(i) - host='\(host)', ip='\(ip)', ovpn.isEmpty=\(ovpn.isEmpty)")
-                }
                 continue
             }
             
@@ -138,7 +122,7 @@ final class VPNGateAPI: VPNGateAPIProtocol {
             ))
         }
         
-        print("🔍 CSV Parser: Parsed \(parsedCount) data lines, created \(result.count) servers, skipped \(skippedCount)")
+        Log.debug("CSV Parser: Created \(result.count) servers, skipped \(skippedCount)")
         
         return result
     }
@@ -155,7 +139,6 @@ final class VPNGateAPI: VPNGateAPIProtocol {
             if ch == "\"" {
                 let next = line.index(after: i)
                 if inQuotes, next < line.endIndex, line[next] == "\"" {
-                    // Escaped quote
                     current.append("\"")
                     i = line.index(after: next)
                     continue
@@ -181,4 +164,3 @@ final class VPNGateAPI: VPNGateAPIProtocol {
         return output
     }
 }
-

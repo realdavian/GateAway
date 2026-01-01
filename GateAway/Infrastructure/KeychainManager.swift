@@ -2,28 +2,44 @@ import Foundation
 import Security
 import LocalAuthentication
 
-// MARK: - Protocol for DI
+// MARK: - Protocol
 
+/// Secure storage for passwords in macOS Keychain with Touch ID support
 protocol KeychainManagerProtocol {
+    /// Saves admin password to Keychain
+    /// - Parameter password: The password to store
     func savePassword(_ password: String) throws
+    
+    /// Retrieves admin password, triggering Touch ID authentication
+    /// - Returns: The stored password
+    /// - Throws: `KeychainError.authenticationCancelled` if user cancels
     func getPassword() async throws -> String
+    
+    /// Deletes stored admin password
     func deletePassword() throws
+    
+    /// Checks if admin password is stored
     func isPasswordStored() -> Bool
+    
+    /// Saves arbitrary data to Keychain for a specific account
     func save(password: Data, account: String) throws
+    
+    /// Retrieves data from Keychain for a specific account
     func get(account: String) throws -> Data
+    
+    /// Deletes data for a specific account
     func delete(account: String) throws
 }
 
 // MARK: - Implementation
 
-/// Manages secure storage of admin password in macOS Keychain with Touch ID protection
 final class KeychainManager: KeychainManagerProtocol {
     
-    // MARK: - Constants
     private let service = Bundle.identifier
     private let account = "admin-password"
     
     // MARK: - Errors
+    
     enum KeychainError: LocalizedError {
         case saveFailed(OSStatus)
         case retrievalFailed(OSStatus)
@@ -50,22 +66,17 @@ final class KeychainManager: KeychainManagerProtocol {
         }
     }
     
-    // MARK: - Init (internal for testability)
     init() {}
     
-    // MARK: - Public Methods
+    // MARK: - Admin Password
     
-    /// Save admin password to Keychain (will require Touch ID on retrieval)
     func savePassword(_ password: String) throws {
         guard !password.isEmpty else {
             throw KeychainError.saveFailed(errSecParam)
         }
         
-        // Delete existing item first (if any)
         try? deletePassword()
         
-        // Prepare query - simple storage without SecAccessControl
-        // We'll authenticate with Touch ID when retrieving instead
         let passwordData = password.data(using: .utf8)!
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -78,62 +89,53 @@ final class KeychainManager: KeychainManagerProtocol {
         let status = SecItemAdd(query as CFDictionary, nil)
         
         guard status == errSecSuccess else {
-            print("❌ [Keychain] Failed to save password: \(status)")
+            Log.error("Failed to save password: \(status)")
             throw KeychainError.saveFailed(status)
         }
         
-        print("✅ [Keychain] Password saved successfully")
+        Log.success("Password saved successfully")
     }
     
-    /// Retrieve admin password from Keychain (triggers Touch ID prompt with password fallback)
+    /// Retrieve admin password (triggers Touch ID prompt with password fallback)
     func getPassword() async throws -> String {
-        // Authenticate with Touch ID OR password fallback
         let context = LAContext()
         context.localizedReason = "Authenticate to connect to VPN"
-        context.localizedFallbackTitle = "Use Password"  // Custom fallback button text
+        context.localizedFallbackTitle = "Use Password"
         
         var authError: NSError?
-        // Use .deviceOwnerAuthentication (not .deviceOwnerAuthenticationWithBiometrics)
-        // This allows BOTH Touch ID AND password fallback
         guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &authError) else {
-            print("⚠️ [Keychain] Device authentication not available: \(authError?.localizedDescription ?? "unknown")")
+            Log.warning("Device authentication not available: \(authError?.localizedDescription ?? "unknown")")
             throw KeychainError.biometricsNotAvailable
         }
         
-        
-        // Use async continuation instead of semaphore - no thread blocking!
         let authenticated: Bool = try await withCheckedThrowingContinuation { continuation in
             context.evaluatePolicy(
                 .deviceOwnerAuthentication,
                 localizedReason: "Authenticate to connect to VPN"
             ) { success, error in
                 if let error = error as? LAError {
-                    // Only treat explicit user cancel as error, NOT fallback
                     if error.code == .userCancel || error.code == .appCancel {
-                        print("⚠️ [Keychain] User cancelled authentication")
+                        Log.warning("User cancelled authentication")
                         continuation.resume(throwing: KeychainError.authenticationCancelled)
                         return
                     }
-                    // .userFallback is NOT an error - it means they chose "Enter Password"
                 }
                 
                 if success {
                     continuation.resume(returning: true)
                 } else {
-                    print("❌ [Keychain] Authentication failed")
+                    Log.error("Authentication failed")
                     continuation.resume(throwing: KeychainError.biometricsNotAvailable)
                 }
             }
         }
         
         guard authenticated else {
-            // Should never reach here due to continuation error handling
             throw KeychainError.authenticationFailed
         }
         
-        print("✅ [Keychain] Authentication succeeded")
+        Log.success("Authentication succeeded")
         
-        // Now retrieve the password from Keychain
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -150,20 +152,19 @@ final class KeychainManager: KeychainManagerProtocol {
                   let password = String(data: passwordData, encoding: .utf8) else {
                 throw KeychainError.retrievalFailed(errSecDecode)
             }
-            print("✅ [Keychain] Password retrieved from Keychain")
+            Log.success("Password retrieved from Keychain")
             return password
             
         case errSecItemNotFound:
-            print("⚠️ [Keychain] Password not found")
+            Log.warning("Password not found")
             throw KeychainError.passwordNotFound
             
         default:
-            print("❌ [Keychain] Failed to retrieve password: \(status)")
+            Log.error("Failed to retrieve password: \(status)")
             throw KeychainError.retrievalFailed(status)
         }
     }
     
-    /// Delete stored password from Keychain
     func deletePassword() throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -174,14 +175,13 @@ final class KeychainManager: KeychainManagerProtocol {
         let status = SecItemDelete(query as CFDictionary)
         
         guard status == errSecSuccess || status == errSecItemNotFound else {
-            print("❌ [Keychain] Failed to delete password: \(status)")
+            Log.error("Failed to delete password: \(status)")
             throw KeychainError.retrievalFailed(status)
         }
         
-        print("✅ [Keychain] Password deleted")
+        Log.success("Password deleted")
     }
     
-    /// Check if password is stored in Keychain
     func isPasswordStored() -> Bool {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -194,20 +194,12 @@ final class KeychainManager: KeychainManagerProtocol {
         return status == errSecSuccess
     }
     
-    /// Check if Touch ID is available on this device
     static func isBiometricsAvailable() -> Bool {
         let context = LAContext()
         var error: NSError?
-        
-        let canEvaluate = context.canEvaluatePolicy(
-            .deviceOwnerAuthenticationWithBiometrics,
-            error: &error
-        )
-        
-        return canEvaluate
+        return context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
     }
     
-    /// Get biometric type (Touch ID, Face ID, etc.)
     static func biometricType() -> String {
         let context = LAContext()
         var error: NSError?
@@ -230,9 +222,8 @@ final class KeychainManager: KeychainManagerProtocol {
         }
     }
     
-    // MARK: - VPN Credential Methods
+    // MARK: - VPN Credentials
     
-    /// Save VPN credential to Keychain
     func save(password: Data, account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -241,10 +232,8 @@ final class KeychainManager: KeychainManagerProtocol {
             kSecValueData as String: password
         ]
         
-        // Try to add
         let status = SecItemAdd(query as CFDictionary, nil)
         
-        // If duplicate, update instead
         if status == errSecDuplicateItem {
             let updateQuery: [String: Any] = [
                 kSecClass as String: kSecClassGenericPassword,
@@ -265,7 +254,6 @@ final class KeychainManager: KeychainManagerProtocol {
         }
     }
     
-    /// Retrieve VPN credential from Keychain
     func get(account: String) throws -> Data {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -291,7 +279,6 @@ final class KeychainManager: KeychainManagerProtocol {
         return data
     }
     
-    /// Delete VPN credential from Keychain
     func delete(account: String) throws {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,

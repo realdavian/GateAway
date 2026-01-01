@@ -1,47 +1,26 @@
 import Foundation
 
-// MARK: - VPN Controller Protocol (DIP: Depend on abstraction, not concrete implementation)
-
-/// Protocol defining the contract for VPN backend implementations.
-/// Follows SOLID principles:
-/// - Single Responsibility: Only handles VPN connection/disconnection
-/// - Open/Closed: Open for extension (new backends), closed for modification
-/// - Liskov Substitution: All implementations are substitutable
-/// - Interface Segregation: Minimal, focused interface
-/// - Dependency Inversion: Depend on abstraction, not concretions
-///
-/// Current implementation:
-/// - OpenVPNController (Primary backend, fully automated)
-///
-/// Future implementations:
-/// - WireGuardController
-/// - IKEv2Controller
+/// Abstract layer for VPN backend controllers
 protocol VPNControlling {
     /// Establishes a VPN connection to the specified server
     /// - Parameter server: The VPN server to connect to
-    /// - Throws: VPNControllerError on failure
     func connect(server: VPNServer) async throws
     
     /// Terminates the current VPN connection
-    /// - Throws: VPNControllerError on failure
     func disconnect() async throws
     
-    /// Cancel an in-progress connection attempt
+    /// Cancels an in-progress connection attempt without throwing
     func cancelConnection()
     
-    /// Returns a human-readable name for this VPN backend
-    /// Examples: "OpenVPN CLI", "WireGuard", "IKEv2"
+    /// Human-readable name for this backend (e.g., "OpenVPN CLI")
     var backendName: String { get }
     
-    /// Indicates whether this backend is available/installed on the system
-    /// Returns false if required binaries or applications are not found
+    /// Whether the required binaries are installed on the system
     var isAvailable: Bool { get }
 }
 
-// MARK: - VPN Controller Error
+// MARK: - Errors
 
-/// Standard error type for VPN operations across all backends
-/// Follows consistent error reporting for better UX
 enum VPNControllerError: LocalizedError {
     case notAvailable(String)
     case connectionFailed(String)

@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Preferences Model (SRP: Encapsulate all user preferences)
+// MARK: - Preferences Model
 
 struct UserPreferences {
     var autoReconnectOnDrop: Bool
@@ -16,27 +16,25 @@ struct UserPreferences {
     enum VPNProvider: String, CaseIterable {
         case openVPN = "OpenVPN"
         
-        var displayName: String { 
-            return "OpenVPN CLI"
-        }
+        var displayName: String { "OpenVPN CLI" }
     }
     
     static let `default` = UserPreferences(
         autoReconnectOnDrop: true,
         reconnectScope: .sameCountry,
         topKPerCountry: 5,
-        vpnProvider: .openVPN  // Default to OpenVPN (headless)
+        vpnProvider: .openVPN
     )
 }
 
-// MARK: - Protocol (ISP: Interface segregation)
+// MARK: - Protocol
 
 protocol PreferencesManagerProtocol {
     func loadPreferences() -> UserPreferences
     func savePreferences(_ preferences: UserPreferences)
 }
 
-// MARK: - Implementation (SRP: Single responsibility - manage preferences persistence)
+// MARK: - Implementation
 
 final class PreferencesManager: PreferencesManagerProtocol {
     private let defaults: UserDefaults
@@ -75,4 +73,3 @@ final class PreferencesManager: PreferencesManagerProtocol {
         defaults.set(preferences.vpnProvider.rawValue, forKey: Keys.vpnProvider)
     }
 }
-

@@ -48,7 +48,7 @@ struct SecurityTab: View {
         do {
             try keychainManager.savePassword(setupPassword)
             setupPassword = "" // Clear for security
-            print("✅ Password saved to Keychain")
+            Log.success("Password saved to Keychain")
         } catch {
             testResultMessage = "❌ Failed to save password: \(error.localizedDescription)"
             showingTestResult = true

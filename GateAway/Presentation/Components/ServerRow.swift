@@ -98,8 +98,8 @@ struct ServerRow: View {
                 // Dynamic connection button
                 if isConnected {
                     Button(action: {
-                        print("🔘 [ServerRow] Disconnect button tapped for \(server.countryLong)")
-                        onDisconnect()
+                    Log.debug("Disconnect button tapped for \(server.countryLong)")
+                    onDisconnect()
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "xmark.circle.fill")
@@ -118,8 +118,8 @@ struct ServerRow: View {
                           server.hostName == connectingServerName {
                     // Show Stop button ONLY for the server being connected to
                     Button(action: {
-                        print("🛑 [ServerRow] Stop button tapped for \(server.countryLong)")
-                        onCancelConnection()
+                    Log.debug("Stop button tapped for \(server.countryLong)")
+                    onCancelConnection()
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "stop.circle.fill")
@@ -136,8 +136,8 @@ struct ServerRow: View {
                 } else {
                     // Show Connect for disconnected servers
                     Button(action: {
-                        print("🔘 [ServerRow] Connect button tapped for \(server.countryLong)")
-                        onConnect()
+                    Log.debug("Connect button tapped for \(server.countryLong)")
+                    onConnect()
                     }) {
                         Text("Connect")
                             .font(.caption)

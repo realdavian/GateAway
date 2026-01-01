@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-// MARK: - VPN Monitor Protocol
+// MARK: - Protocol
 
 protocol VPNMonitorProtocol {
     func startMonitoring()
@@ -9,125 +9,86 @@ protocol VPNMonitorProtocol {
     var statsPublisher: AnyPublisher<VPNStats, Never> { get }
 }
 
-// MARK: - VPN Monitor Implementation
+// MARK: - Implementation
 
-/// Monitors OpenVPN via management socket and publishes stats.
-/// This is a pure publisher - it does NOT own connection state.
-/// Stats are published via Combine, subscribed to by MonitoringStore.
 final class VPNMonitor: VPNMonitorProtocol {
-    
-    // MARK: - Properties
     
     private let managementSocketPath: String
     private let fileManager = FileManager.default
-    
     private var monitorTask: Task<Void, Never>?
     private var monitoringRefCount = 0
-    
-    // MARK: - Combine Publisher
-    
     private let statsSubject = CurrentValueSubject<VPNStats, Never>(.empty)
     
-    /// Publisher for real-time VPN stats
     var statsPublisher: AnyPublisher<VPNStats, Never> {
         statsSubject.eraseToAnyPublisher()
     }
     
-    // MARK: - Init
-    
     init() {
         let homeDir = fileManager.homeDirectoryForCurrentUser
-        let configDir = homeDir.appendingPathComponent(".tsukuba-vpn")
+        let configDir = homeDir.appendingPathComponent(".gateaway")
         self.managementSocketPath = configDir.appendingPathComponent("openvpn.sock").path
-        print("📊 [VPNMonitor] Monitoring socket at: \(managementSocketPath)")
+        Log.debug("Monitoring socket at: \(managementSocketPath)")
     }
     
     // MARK: - Monitoring Lifecycle
     
     func startMonitoring() {
         monitoringRefCount += 1
-        print("📊 [VPNMonitor] Starting monitoring (ref count: \(monitoringRefCount))")
+        Log.debug("Starting monitoring (ref count: \(monitoringRefCount))")
         
-        // Only start task if not already running
-        guard monitorTask == nil else {
-            print("📊 [VPNMonitor] Task already running, skipping")
-            return
-        }
+        guard monitorTask == nil else { return }
         
-        print("📊 [VPNMonitor] Creating new monitoring task")
         monitorTask = Task { [weak self] in
             guard let self else { return }
             
             var previousStats = VPNStats.empty
-            var iteration = 0
             
             while !Task.isCancelled {
-                iteration += 1
-                if iteration % 10 == 0 {
-                    print("📊 [VPNMonitor] Still polling... iteration \(iteration)")
-                }
-                
-                // Poll stats from OpenVPN socket
                 let newStats = await self.pollStats(previous: previousStats)
-                
-                // Publish to subscribers
                 self.statsSubject.send(newStats)
                 previousStats = newStats
                 
-                // Sleep before next poll
                 do {
-                    try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
+                    try await Task.sleep(nanoseconds: 1_000_000_000)
                 } catch {
-                    print("📊 [VPNMonitor] Task cancelled during sleep")
                     break
                 }
             }
             
-            print("📊 [VPNMonitor] Monitoring task stopped")
+            Log.debug("Monitoring task stopped")
         }
     }
     
     func stopMonitoring() {
         monitoringRefCount = max(0, monitoringRefCount - 1)
-        print("📊 [VPNMonitor] Stop request (ref count: \(monitoringRefCount))")
         
-        // Only stop if no more observers
-        guard monitoringRefCount == 0 else {
-            print("📊 [VPNMonitor] Still has \(monitoringRefCount) observer(s), keeping task alive")
-            return
-        }
+        guard monitoringRefCount == 0 else { return }
         
-        print("📊 [VPNMonitor] Stopping monitoring (no more observers)")
+        Log.debug("Stopping monitoring (no more observers)")
         monitorTask?.cancel()
         monitorTask = nil
-        
-        // Reset stats
         statsSubject.send(.empty)
     }
     
-    /// Force stop monitoring (for cancel/disconnect)
     func forceStop() {
         monitoringRefCount = 0
         monitorTask?.cancel()
         monitorTask = nil
         statsSubject.send(.empty)
-        print("📊 [VPNMonitor] Force stopped")
+        Log.debug("Force stopped")
     }
     
     // MARK: - Stats Polling
     
     private func pollStats(previous: VPNStats) async -> VPNStats {
-        // Check if management socket exists
         guard fileManager.fileExists(atPath: managementSocketPath) else {
-            return previous  // Keep previous stats if no socket
+            return previous
         }
         
-        // Query OpenVPN for status
         guard let status = await queryStatus() else {
             return previous
         }
         
-        // Parse status for stats
         return parseStatus(status, previous: previous)
     }
     
@@ -168,7 +129,6 @@ final class VPNMonitor: VPNMonitorProtocol {
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
             
-            // Parse: TCP/UDP read bytes,12345
             if trimmed.contains("TCP/UDP read bytes") {
                 if let commaIndex = trimmed.firstIndex(of: ",") {
                     let numberPart = trimmed[trimmed.index(after: commaIndex)...].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -178,7 +138,6 @@ final class VPNMonitor: VPNMonitorProtocol {
                 }
             }
             
-            // Parse: TCP/UDP write bytes,67890
             if trimmed.contains("TCP/UDP write bytes") {
                 if let commaIndex = trimmed.firstIndex(of: ",") {
                     let numberPart = trimmed[trimmed.index(after: commaIndex)...].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -189,7 +148,6 @@ final class VPNMonitor: VPNMonitorProtocol {
             }
         }
         
-        // Calculate speeds (bytes per second)
         let downloadSpeed = bytesReceived > previous.bytesReceived ?
             Double(bytesReceived - previous.bytesReceived) : 0.0
         let uploadSpeed = bytesSent > previous.bytesSent ?
@@ -206,10 +164,9 @@ final class VPNMonitor: VPNMonitorProtocol {
     }
 }
 
-// MARK: - Management Socket Interface
+// MARK: - Management Socket
 
 extension VPNMonitor {
-    /// Send a signal to OpenVPN via management socket
     func sendManagementCommand(_ command: String) -> Bool {
         guard fileManager.fileExists(atPath: managementSocketPath) else {
             return false

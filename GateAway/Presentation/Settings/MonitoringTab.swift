@@ -196,9 +196,9 @@ struct MonitoringTab: View {
                 
                 switch result {
                 case .success:
-                    print("✅ Disconnected successfully")
+                    Log.success("Disconnected successfully")
                 case .failure(let error):
-                    print("❌ Disconnect failed: \(error.localizedDescription)")
+                    Log.error("Disconnect failed: \(error.localizedDescription)")
                 }
             }
         }      

@@ -1,40 +1,29 @@
-//
-//  OpenVPNController.swift
-//  TsukubaVPNGate
-//
-//  Handles VPN connections via OpenVPN CLI (headless, no GUI prompts)
-//
-
 import Foundation
 
 final class OpenVPNController: VPNControlling {
     
-    // MARK: - VPNControlling Protocol
+    // MARK: - Protocol
     
-    var backendName: String {
-        return "OpenVPN CLI"
-    }
+    var backendName: String { "OpenVPN CLI" }
     
-    var isAvailable: Bool {
-        return fileManager.fileExists(atPath: openVPNBinary)
-    }
+    var isAvailable: Bool { fileManager.fileExists(atPath: openVPNBinary) }
     
-    // MARK: - Private Properties
+    // MARK: - Properties
     
     private let fileManager = FileManager.default
     private var currentConfigPath: String?
     private var currentProcess: Process?
     private var managementSocket: FileHandle?
     private let vpnMonitor: VPNMonitorProtocol
+    private let keychainManager: KeychainManagerProtocol
     
-    // OpenVPN paths
     private let openVPNBinary: String
     private let configDirectory: String
     private let pidFilePath: String
     private let logFilePath: String
     private let managementSocketPath: String
     
-    // MARK: - Error Types
+    // MARK: - Errors
     
     enum OpenVPNError: LocalizedError {
         case notInstalled
@@ -59,8 +48,7 @@ final class OpenVPNController: VPNControlling {
         }
     }
     
-    // MARK: - Dependencies (injected for testability)
-    private let keychainManager: KeychainManagerProtocol
+    // MARK: - Init
     
     init(vpnMonitor: VPNMonitorProtocol, keychainManager: KeychainManagerProtocol) {
         self.vpnMonitor = vpnMonitor
@@ -72,7 +60,7 @@ final class OpenVPNController: VPNControlling {
         } else if fileManager.fileExists(atPath: "/usr/local/sbin/openvpn") {
             openVPNBinary = "/usr/local/sbin/openvpn"
         } else {
-            openVPNBinary = "/opt/homebrew/sbin/openvpn" // Default path
+            openVPNBinary = "/opt/homebrew/sbin/openvpn"
         }
         
         // Setup directories
@@ -89,9 +77,8 @@ final class OpenVPNController: VPNControlling {
         try? fileManager.removeItem(atPath: managementSocketPath)
     }
     
-    // MARK: - VPNControlling Protocol
+    // MARK: - Connection
     
-    /// Connect with automatic retry for better reliability
     func connectWithRetry(server: VPNServer, policy: RetryPolicy = .default) async throws {
         try await policy.execute {
             try await self.connect(server: server)
@@ -99,13 +86,13 @@ final class OpenVPNController: VPNControlling {
     }
     
     func connect(server: VPNServer) async throws {
-        print("🔗 [OpenVPN] Connecting to \(server.countryLong) (\(server.hostName))")
+        Log.info("Connecting to \(server.countryLong) (\(server.hostName))")
         
         // 0. Kill any existing openvpn process (ensures only 1 connection)
         if getOpenVPNProcessCount() > 0 {
-            print("⚠️ [OpenVPN] Killing existing process before new connection")
+            Log.warning("Killing existing process before new connection")
             _ = sendManagementCommand("signal SIGTERM")
-            try await Task.sleep(nanoseconds: 500_000_000)  // Wait 0.5s for cleanup
+            try await Task.sleep(nanoseconds: 500_000_000)
         }
         
         // 1. Pre-flight Permission Check
@@ -123,41 +110,31 @@ final class OpenVPNController: VPNControlling {
         // 4. Start OpenVPN process
         try await startOpenVPN(configPath: configPath)
         
-        // 5. Wait for connection to establish
-        print("⏳ [OpenVPN] Process running, waiting for CONNECTED state...")
+        Log.debug("Process running, waiting for CONNECTED state...")
         try await waitForConnection(server: server)
         
-        print("✅ [OpenVPN] Connection established successfully")
+        Log.success("Connection established successfully")
     }
-
-
     
     private func waitForConnection(server: VPNServer) async throws {
         let maxAttempts = 30
         
         for attempt in 1...maxAttempts {
-            // Check success (file I/O and socket I/O automatically on background)
             if isActuallyConnected() {
-                print("✅ [OpenVPN] Connection established after \(attempt) seconds")
-                // Server info is set by VPNConnectionManager via MonitoringStore
-                return  // Success!
+                Log.success("Connection established after \(attempt) seconds")
+                return
             }
             
             // Check failure (process crashed)
             if !isOpenVPNRunning() {
-                print("❌ [OpenVPN] Process terminated during connection")
-                
-                // Try to read log (file I/O automatically on background)
+                Log.error("Process terminated during connection")
                 let errorMessage = extractErrorFromLog() ?? "Connection failed - check log"
                 throw OpenVPNError.connectionFailed(errorMessage)
             }
             
-            // Wait before next attempt (macOS 11 compatible)
-            try await Task.sleep(nanoseconds: 1_000_000_000)  // 1 second
-
+            try await Task.sleep(nanoseconds: 1_000_000_000)
         }
         
-        // Timeout
         throw OpenVPNError.connectionFailed("Connection timeout after \(maxAttempts) seconds - check server")
     }
     
@@ -167,7 +144,7 @@ final class OpenVPNController: VPNControlling {
         }
         
         let lastLines = logContent.components(separatedBy: "\n").suffix(5).joined(separator: " | ")
-        print("📋 [OpenVPN] Log: \(lastLines)")
+        Log.debug("Log: \(lastLines)")
         
         if lastLines.contains("AUTH_FAILED") {
             return "Authentication Failed"
@@ -175,47 +152,42 @@ final class OpenVPNController: VPNControlling {
         
         return "Connection failed - check log"
     }
-
     
-    /// Cancel an in-progress connection attempt
-    /// Uses management socket (no sudo needed). If socket doesn't exist yet,
-    /// Task cancellation in VPNConnectionManager handles stopping the retry loop.
     func cancelConnection() {
-        print("🛑 [OpenVPN] Cancelling connection...")
+        Log.info("Cancelling connection...")
         
-        // Try management socket first (NO SUDO NEEDED!)
+        // Try management socket first
         if fileManager.fileExists(atPath: managementSocketPath) {
-            print("📡 [OpenVPN] Sending cancel via management socket...")
+            Log.debug("Sending cancel via management socket...")
             if sendManagementCommand("signal SIGTERM") {
-                print("✅ [OpenVPN] Cancel signal sent via socket")
+                Log.success("Cancel signal sent via socket")
                 return
             }
         }
         
         // If socket doesn't exist, process hasn't fully started
         // The Task cancellation in VPNConnectionManager stops the retry loop
-        print("ℹ️ [OpenVPN] No socket yet - Task cancellation will stop the connection")
+        Log.debug("No socket yet - Task cancellation will stop the connection")
     }
     
     func disconnect() async throws {
-        print("🔌 [OpenVPN] Disconnecting...")
+        Log.info("Disconnecting...")
         
+        // Try management socket first
         // Try management interface first (NO SUDO REQUIRED!)
         if fileManager.fileExists(atPath: managementSocketPath) {
-            print("📡 [OpenVPN] Sending disconnect via management interface...")
-            
             if sendManagementCommand("signal SIGTERM") {
-                print("✅ [OpenVPN] Graceful disconnect sent via management socket")
-                try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+                Log.success("Graceful disconnect sent via management socket")
+                try await Task.sleep(nanoseconds: 1_500_000_000)
             } else {
-                print("⚠️ [OpenVPN] Management socket failed, will try killall")
+                Log.warning("Management socket failed, will try killall")
             }
         }
         
         // Check if there are still processes running
         let processCount = getOpenVPNProcessCount()
         if processCount > 0 {
-            print("⚠️ [OpenVPN] \(processCount) process(es) still running, using killall...")
+            Log.warning("\(processCount) process(es) still running, using killall...")
             
             let killScript = """
             do shell script "killall -9 openvpn 2>/dev/null || true" with administrator privileges
@@ -225,24 +197,22 @@ final class OpenVPNController: VPNControlling {
             if let scriptObject = NSAppleScript(source: killScript) {
                 let _ = scriptObject.executeAndReturnError(&error)
                 if let error = error {
-                    print("⚠️ [OpenVPN] Kill script error: \(error)")
+                    Log.warning("Kill script error: \(error)")
                 } else {
-                    print("✅ [OpenVPN] All OpenVPN processes killed")
-                    try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                    Log.success("All OpenVPN processes killed")
+                    try await Task.sleep(nanoseconds: 500_000_000)
                 }
             }
         }
         
         // Stop monitoring before cleanup
-        print("📊 [OpenVPN] Stopping VPN monitoring...")
+        Log.debug("Stopping VPN monitoring...")
         vpnMonitor.stopMonitoring()
         
-        // Cleanup all config files and sockets
         currentProcess = nil
         try? fileManager.removeItem(atPath: pidFilePath)
         try? fileManager.removeItem(atPath: managementSocketPath)
         
-        // Clean up all .ovpn files in the directory
         if let files = try? fileManager.contentsOfDirectory(atPath: configDirectory) {
             for file in files where file.hasSuffix(".ovpn") {
                 try? fileManager.removeItem(atPath: "\(configDirectory)/\(file)")
@@ -250,10 +220,8 @@ final class OpenVPNController: VPNControlling {
         }
         
         currentConfigPath = nil
-        
-        print("✅ [OpenVPN] Disconnected successfully")
+        Log.success("Disconnected successfully")
     }
-
     
     private func getOpenVPNProcessCount() -> Int {
         let task = Process()
@@ -272,24 +240,23 @@ final class OpenVPNController: VPNControlling {
                 return Int(output.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
             }
         } catch {
-            print("⚠️ [OpenVPN] Failed to get process count: \(error)")
+            Log.warning("Failed to get process count: \(error)")
         }
         
         return 0
     }
-
-    // MARK: - Helper Methods
+    
+    // MARK: - Helpers
+    
     func isInstalled() -> Bool {
         return fileManager.fileExists(atPath: openVPNBinary)
     }
     
     func getConnectionStatus() -> (isConnected: Bool, vpnIP: String?) {
-        // Public method to check actual connection status
         guard let stateOutput = queryConnectionState() else {
             return (false, nil)
         }
         
-        // Parse state: format is "timestamp,STATE,description,IP,..."
         let components = stateOutput.components(separatedBy: ",")
         if components.count >= 2 {
             let state = components[1]
@@ -300,32 +267,23 @@ final class OpenVPNController: VPNControlling {
         
         return (false, nil)
     }
-
-    // MARK: - Private Methods
+    
+    // MARK: - Configuration
     
     private func createConfiguration(for server: VPNServer) throws -> String {
-        // Decode base64 OpenVPN config
         guard let configData = Data(base64Encoded: server.openVPNConfigBase64),
               let configString = String(data: configData, encoding: .utf8) else {
             throw OpenVPNError.configurationCreationFailed
         }
         
-        // Securely handle credentials
         let authFilePath = "\(configDirectory)/auth.txt"
-        
-        // 1. Try to get password from Keychain (account "vpn")
         let passwordData = try? keychainManager.get(account: "vpn")
         let password = passwordData.flatMap { String(data: $0, encoding: .utf8) } ?? "vpn"
         
-        // 2. Write to file with restricted permissions (0600)
-        // Note: 'write(toFile...)' uses default permissions. 
-        // We should explicitly set permissions after writing.
-        let authContent = "vpn\n\(password)\n" // standard VPNGate user is 'vpn'
+        let authContent = "vpn\n\(password)\n"
         try authContent.write(toFile: authFilePath, atomically: true, encoding: .utf8)
-        
         try? fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: authFilePath)
         
-        // Build clean config
         var cleanLines = configString.components(separatedBy: "\n").filter { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             return !trimmed.hasPrefix("#auth-user-pass") &&
@@ -335,7 +293,7 @@ final class OpenVPNController: VPNControlling {
         
         // Add our configuration block
         cleanLines.append("")
-        cleanLines.append("# TsukubaVPNGate Configuration")
+        cleanLines.append("# GateAway Configuration")
         cleanLines.append("auth-user-pass \(authFilePath)")
         cleanLines.append("auth-nocache")
         cleanLines.append("auth-retry nointeract")
@@ -363,49 +321,40 @@ final class OpenVPNController: VPNControlling {
         
         let finalConfig = cleanLines.joined(separator: "\n")
         
-        // Save to file
         let configName = "vpngate_\(server.countryShort)_\(Int(Date().timeIntervalSince1970)).ovpn"
             .replacingOccurrences(of: " ", with: "_")
         let configPath = "\(configDirectory)/\(configName)"
         
         try finalConfig.write(toFile: configPath, atomically: true, encoding: .utf8)
-        
-        print("✅ [OpenVPN] Created config: \(configPath)")
+        Log.debug("Created config: \(configPath)")
         
         return configPath
     }
     
+    // MARK: - OpenVPN Process
+    
     private func startOpenVPN(configPath: String) async throws {
-        // Try to get admin password from Keychain (triggers Touch ID if stored)
         if keychainManager.isPasswordStored() {
-            print("🔐 [OpenVPN] Password found in Keychain, using Touch ID...")
+            Log.debug("Password found in Keychain, using Touch ID...")
             
             do {
-                // This will trigger Touch ID prompt
                 let password = try await keychainManager.getPassword()
-                print("✅ [OpenVPN] Retrieved password via Touch ID")
-                
-                // Use password with osascript for non-interactive sudo
+                Log.success("Retrieved password via Touch ID")
                 try await startOpenVPNWithPassword(password, configPath: configPath)
-                
             } catch KeychainManager.KeychainError.authenticationCancelled {
-                print("⚠️ [OpenVPN] User cancelled Touch ID")
+                Log.warning("User cancelled Touch ID")
                 throw OpenVPNError.connectionFailed("Touch ID authentication cancelled")
-                
             } catch {
-                print("⚠️ [OpenVPN] Keychain retrieval failed: \(error). Falling back to system prompt.")
-                // Fall back to standard AppleScript prompt
+                Log.warning("Keychain retrieval failed: \(error). Falling back to system prompt.")
                 try await startOpenVPNWithAppleScript(configPath: configPath)
             }
         } else {
-            print("🔐 [OpenVPN] No password in Keychain, using system auth prompt...")
-            // No password stored, use standard AppleScript prompt
+            Log.debug("No password in Keychain, using system auth prompt...")
             try await startOpenVPNWithAppleScript(configPath: configPath)
         }
     }
     
     private func startOpenVPNWithPassword(_ password: String, configPath: String) async throws {
-        // Use password via stdin for non-interactive sudo
         let command = """
         killall openvpn 2>/dev/null || true
         sleep 1
@@ -420,29 +369,21 @@ final class OpenVPNController: VPNControlling {
         
         do {
             try task.run()
-            print("✅ [OpenVPN] Process started with Keychain password (no manual auth needed!)")
-            
-            // Wait a moment for process to initialize
-            try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-            
-            // Continue with standard process verification
+            Log.success("Process started with Keychain password")
+            try await Task.sleep(nanoseconds: 2_000_000_000)
             try await verifyOpenVPNStarted()
-            
         } catch {
-            print("❌ [OpenVPN] Failed to start with password: \(error)")
+            Log.error("Failed to start with password: \(error)")
             throw OpenVPNError.connectionFailed("Failed to start OpenVPN: \(error.localizedDescription)")
         }
     }
     
     private func startOpenVPNWithAppleScript(configPath: String) async throws {
-        // SINGLE sudo call: kill any existing OpenVPN processes AND start new one
-        // This prevents double password prompts!
         let script = """
         do shell script "killall openvpn 2>/dev/null || true; sleep 1; \(openVPNBinary) --config '\(configPath)'" with administrator privileges
         """
         
-        print("🔐 [OpenVPN] Requesting admin privileges (Touch ID supported)...")
-        print("⏳ [OpenVPN] Waiting for user authentication...")
+        Log.debug("Requesting admin privileges...")
         
         guard let scriptObject = NSAppleScript(source: script) else {
             throw OpenVPNError.connectionFailed("Failed to create admin prompt script")
@@ -454,56 +395,43 @@ final class OpenVPNController: VPNControlling {
         if let error = executionError {
             let errorCode = error["NSAppleScriptErrorNumber"] as? Int ?? 0
             let errorMessage = error["NSAppleScriptErrorBriefMessage"] as? String ?? "Unknown error"
-            print("❌ [OpenVPN] Admin script error (code: \(errorCode)): \(errorMessage)")
+            Log.error("Admin script error (code: \(errorCode)): \(errorMessage)")
             
             if errorCode == -128 {
-                // User cancelled
                 throw OpenVPNError.connectionFailed("User cancelled authentication")
             } else {
                 throw OpenVPNError.connectionFailed("Script execution failed: \(errorMessage)")
             }
         }
         
-        print("✅ [OpenVPN] AppleScript completed - process should be starting")
-        
-        // Wait a moment for process to initialize
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
-        
-        // Continue with standard verification
+        Log.success("AppleScript completed - process should be starting")
+        try await Task.sleep(nanoseconds: 2_000_000_000)
         try await verifyOpenVPNStarted()
     }
     
     private func verifyOpenVPNStarted() async throws {
-        // Check if process actually started
         if isOpenVPNRunning() {
-            print("✅ [OpenVPN] Process confirmed running")
+            Log.success("Process confirmed running")
             
-            // Wait for management socket
             var socketWait = 0
             while socketWait < 5 && !fileManager.fileExists(atPath: managementSocketPath) {
-                try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                try await Task.sleep(nanoseconds: 500_000_000)
                 socketWait += 1
             }
             
             if fileManager.fileExists(atPath: managementSocketPath) {
-                print("✅ [OpenVPN] Management socket ready")
+                Log.success("Management socket ready")
                 connectToManagementInterface()
-                
-                // Start monitoring after successful connection
-                print("📊 [OpenVPN] Starting VPN monitoring...")
                 vpnMonitor.startMonitoring()
-                
-                // Success!
             } else {
-                print("⚠️ [OpenVPN] Management socket not created")
+                Log.warning("Management socket not created")
                 throw OpenVPNError.connectionFailed("Management socket not available")
             }
         } else {
-            print("❌ [OpenVPN] Process failed to start")
-            // Try to get error from log
+            Log.error("Process failed to start")
             if let logContent = try? String(contentsOfFile: logFilePath, encoding: .utf8) {
                 let lastLines = logContent.components(separatedBy: "\n").suffix(3).joined(separator: " | ")
-                print("📋 [OpenVPN] Log: \(lastLines)")
+                Log.debug("Log: \(lastLines)")
             }
             throw OpenVPNError.connectionFailed("Process failed to start")
         }
@@ -512,7 +440,6 @@ final class OpenVPNController: VPNControlling {
     // MARK: - Process Management
     
     private func isOpenVPNRunning() -> Bool {
-        // Check for actual running processes (more reliable than PID file which may not be written yet)
         let task = Process()
         task.launchPath = "/bin/sh"
         task.arguments = ["-c", "ps aux | grep '[o]penvpn --config' | wc -l"]
@@ -529,36 +456,33 @@ final class OpenVPNController: VPNControlling {
                let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)) {
                 let isRunning = count > 0
                 if isRunning {
-                    print("✅ [OpenVPN] Process check: \(count) process(es) running")
+                    Log.debug("Process check: \(count) process(es) running")
                 }
                 return isRunning
             }
         } catch {
-            print("⚠️ [OpenVPN] Failed to check process: \(error)")
+            Log.warning("Failed to check process: \(error)")
         }
         
         return false
     }
     
     private func connectToManagementInterface() {
-        // Connect to OpenVPN management socket for better control
         guard fileManager.fileExists(atPath: managementSocketPath) else {
-            print("⚠️ [OpenVPN] Management socket not ready yet")
+            Log.warning("Management socket not ready yet")
             return
         }
         
-        print("🔌 [OpenVPN] Management interface available at \(managementSocketPath)")
+        Log.debug("Management interface available at \(managementSocketPath)")
     }
     
     private func queryConnectionState() -> String? {
-        // Query OpenVPN's actual connection state via management interface
         guard fileManager.fileExists(atPath: managementSocketPath) else {
             return nil
         }
         
         let task = Process()
         task.launchPath = "/bin/sh"
-        // Fixed: Filter out lines starting with '>' and 'END', get the state line
         task.arguments = ["-c", "echo 'state' | nc -w 1 -U \(managementSocketPath) 2>/dev/null | grep -v '^>' | grep -v '^END' | grep '^[0-9]'"]
         
         let pipe = Pipe()
@@ -578,32 +502,30 @@ final class OpenVPNController: VPNControlling {
                 }
             }
         } catch {
-            print("⚠️ [OpenVPN] Failed to query state: \(error)")
+            Log.warning("Failed to query state: \(error)")
         }
         
         return nil
     }
     
     private func isActuallyConnected() -> Bool {
-        // Check if OpenVPN has completed connection (not just started)
         guard let stateOutput = queryConnectionState() else {
             return false
         }
         
-        // Parse state: format is "timestamp,STATE,description,IP,..."
         let components = stateOutput.components(separatedBy: ",")
         if components.count >= 2 {
             let state = components[1]
             let isConnected = state == "CONNECTED"
             
             if isConnected {
-                print("✅ [OpenVPN] State: CONNECTED")
+                Log.success("State: CONNECTED")
                 if components.count >= 4 {
                     let ip = components[3]
-                    print("✅ [OpenVPN] VPN IP: \(ip)")
+                    Log.success("VPN IP: \(ip)")
                 }
             } else {
-                print("⏳ [OpenVPN] State: \(state)")
+                Log.debug("State: \(state)")
             }
             
             return isConnected
@@ -613,13 +535,11 @@ final class OpenVPNController: VPNControlling {
     }
     
     private func sendManagementCommand(_ command: String) -> Bool {
-        // Send command to OpenVPN management socket (NO SUDO NEEDED!)
         guard fileManager.fileExists(atPath: managementSocketPath) else {
-            print("⚠️ [OpenVPN] Management socket not found")
+            Log.warning("Management socket not found")
             return false
         }
         
-        // Use nc (netcat) to send command to Unix socket
         let task = Process()
         task.launchPath = "/usr/bin/nc"
         task.arguments = ["-U", managementSocketPath]
@@ -632,7 +552,6 @@ final class OpenVPNController: VPNControlling {
         do {
             try task.run()
             
-            // Write command
             let commandData = "\(command)\n".data(using: .utf8)!
             inputPipe.fileHandleForWriting.write(commandData)
             inputPipe.fileHandleForWriting.closeFile()
@@ -640,16 +559,15 @@ final class OpenVPNController: VPNControlling {
             task.waitUntilExit()
             
             if task.terminationStatus == 0 {
-                print("✅ [OpenVPN] Sent '\(command)' via management socket (no sudo needed!)")
+                Log.success("Sent '\(command)' via management socket")
                 return true
             } else {
-                print("⚠️ [OpenVPN] Failed to send command via socket")
+                Log.warning("Failed to send command via socket")
                 return false
             }
         } catch {
-            print("⚠️ [OpenVPN] Socket communication error: \(error)")
+            Log.warning("Socket communication error: \(error)")
             return false
         }
     }
 }
-

@@ -49,12 +49,11 @@ final class StatusBarController: NSObject {
         configureStatusButton()
         rebuildMenu()
         
-        // Subscribe to MonitoringStore for real-time icon updates
-        print("🎯 [StatusBarController] Subscribing to MonitoringStore")
+        Log.debug("Subscribing to MonitoringStore")
         monitoringStore.$connectionState
             .receive(on: DispatchQueue.main)
             .sink { [weak self] state in
-                print("🎯 [StatusBarController] Received update: \(state)")
+                Log.debug("Connection state: \(state)")
                 self?.updateStatusIcon(storeState: state)
             }
             .store(in: &cancellables)
@@ -63,7 +62,7 @@ final class StatusBarController: NSObject {
     // MARK: - Dynamic Updates
     
     func updateCoordinator(_ newCoordinator: AppCoordinatorProtocol) {
-        print("🔄 [StatusBarController] Updating coordinator (backend switched)")
+        Log.debug("Updating coordinator (backend switched)")
         self.coordinator = newCoordinator
         rebuildMenu()
     }
@@ -192,7 +191,7 @@ final class StatusBarController: NSObject {
         let byCountryMenu = NSMenu()
         
         let countries = coordinator.getAvailableCountries()
-        print("📍 StatusBarController: Building country submenu, found \(countries.count) countries: \(countries)")
+        Log.debug("Building country submenu: \(countries.count) countries")
         
         for country in countries {
             let countryItem = NSMenuItem(title: country, action: nil, keyEquivalent: "")

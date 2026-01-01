@@ -4,12 +4,11 @@ import Combine
 
 // MARK: - Connection Attempt Model
 
-/// Represents a single connection attempt with its outcome and metrics
 struct ConnectionAttempt: Codable {
     let serverID: String
     let timestamp: Date
     let success: Bool
-    let connectionTime: TimeInterval?  // nil if failed
+    let connectionTime: TimeInterval?
     let retryCount: Int
     let failureReason: String?
     
@@ -25,7 +24,6 @@ struct ConnectionAttempt: Codable {
 
 // MARK: - Server Statistics
 
-/// Aggregated statistics for a specific server
 struct ServerStats: Codable {
     let totalAttempts: Int
     let successCount: Int
@@ -43,17 +41,15 @@ struct ServerStats: Codable {
     }
 }
 
-// MARK: - Protocol for DI
+// MARK: - Protocol
 
 protocol TelemetryProtocol {
     func recordAttempt(serverID: String, success: Bool, connectionTime: TimeInterval?, retryCount: Int, failureReason: String?)
     func getOverallStats() -> (totalAttempts: Int, successCount: Int, avgConnectionTime: TimeInterval)?
 }
 
-// MARK: - Connection Telemetry Manager
+// MARK: - Implementation
 
-/// Manages connection telemetry data for reliability tracking and server scoring
-/// All data is stored locally - no external analytics
 @MainActor
 class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
     
@@ -61,17 +57,12 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
     
     private let maxHistoryDays = 30
     private var attempts: [ConnectionAttempt] = []
-    
     private let storageKey = "vpn.connectionAttempts"
     
-    // MARK: - Init (internal for testability)
     init() {
         load()
     }
     
-    // MARK: - Public API
-    
-    /// Record a connection attempt
     func recordAttempt(
         serverID: String,
         success: Bool,
@@ -92,10 +83,9 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
         recalculateStats()
         save()
         
-        print("📊 [Telemetry] Recorded \(success ? "✅ success" : "❌ failure") for server \(serverID)")
+        Log.debug("Recorded \(success ? "success" : "failure") for server \(serverID)")
     }
     
-    /// Get overall statistics across all servers
     func getOverallStats() -> (totalAttempts: Int, successCount: Int, avgConnectionTime: TimeInterval)? {
         guard !attempts.isEmpty else { return nil }
         
@@ -106,7 +96,7 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
         return (total, success, avgTime)
     }
     
-    // MARK: - Private Helpers
+    // MARK: - Private
     
     private func cleanOldData() {
         let cutoff = Date().addingTimeInterval(-Double(maxHistoryDays) * 24 * 3600)
@@ -126,19 +116,14 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
             guard totalCount > 0 else { continue }
             
             let successRate = Double(successCount) / Double(totalCount)
-            
-            // Calculate average connection time (only for successful attempts)
             let successfulTimes = attempts.compactMap { $0.connectionTime }
             let avgTime = successfulTimes.isEmpty ? 0 : successfulTimes.reduce(0, +) / Double(successfulTimes.count)
             
-            // Calculate reliability score (0-100)
-            // 70% weight on success rate
-            // 20% weight on speed (lower time = higher score)
-            // 10% penalty for retries
+            // Reliability: 70% success rate + 20% speed - 10% retry penalty
             let successScore = successRate * 70
-            let speedScore = avgTime > 0 ? max(0, 20 - (avgTime * 2)) : 0  // 10s = 0 points, 0s = 20 points
+            let speedScore = avgTime > 0 ? max(0, 20 - (avgTime * 2)) : 0
             let avgRetries = Double(attempts.map { $0.retryCount }.reduce(0, +)) / Double(totalCount)
-            let retryPenalty = avgRetries * 5  // Each retry costs 5 points
+            let retryPenalty = avgRetries * 5
             
             let reliability = min(100, max(0, successScore + speedScore - retryPenalty))
             
@@ -154,8 +139,6 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
         stats = newStats
     }
     
-    // MARK: - Persistence
-    
     private func save() {
         if let data = try? JSONEncoder().encode(attempts) {
             UserDefaults.standard.set(data, forKey: storageKey)
@@ -168,15 +151,14 @@ class ConnectionTelemetry: ObservableObject, TelemetryProtocol {
             attempts = decoded
             cleanOldData()
             recalculateStats()
-            print("📊 [Telemetry] Loaded \(attempts.count) historical attempts")
+            Log.debug("Loaded \(attempts.count) historical attempts")
         }
     }
 }
 
-// MARK: - Helper Extensions
+// MARK: - Helpers
 
 extension ConnectionTelemetry {
-    /// Format connection time for display
     static func formatTime(_ seconds: TimeInterval) -> String {
         if seconds < 1 {
             return String(format: "%.0fms", seconds * 1000)

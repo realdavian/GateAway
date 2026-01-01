@@ -124,7 +124,7 @@ private struct CacheStatusView: View {
                 
                 Button("Clear Cache") {
                     cacheManager.clearCache()
-                    print("🗑️ Cache cleared by user")
+                    Log.debug("Cache cleared by user")
                 }
                 .font(.caption)
             }

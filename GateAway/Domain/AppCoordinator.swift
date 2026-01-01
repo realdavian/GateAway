@@ -1,26 +1,50 @@
 import Foundation
 
-// MARK: - Coordinator Protocol (OCP: Open for extension)
+// MARK: - Protocol
 
+/// Central coordinator for app-wide VPN operations
 protocol AppCoordinatorProtocol {
+    /// Refreshes the server list from the API
     func refreshServerList() async throws
+    
+    /// Connects to the best available server using parallel ping tests
     func connectToBestServer() async throws
+    
+    /// Connects to a specific VPN server
+    /// - Parameter server: The server to connect to
     func connectToServer(_ server: VPNServer) async throws
+    
+    /// Disconnects from the current VPN server
     func disconnect() async throws
+    
+    /// Cancels an in-progress connection attempt
     func cancelConnection() async
     
+    /// Returns list of countries with available servers
     func getAvailableCountries() -> [String]
+    
+    /// Returns top servers for a country, sorted by quality
+    /// - Parameter country: The country name to filter by
     func getTopServers(forCountry country: String) -> [VPNServer]
+    
+    /// Finds a server by its unique ID
+    /// - Parameter id: The server ID to search for
     func getServerByID(_ id: String) -> VPNServer?
+    
+    /// Returns the current connection state
     func getCurrentConnectionState() -> ConnectionState
+    
+    /// Returns user preferences
     func getPreferences() -> UserPreferences
+    
+    /// Returns a formatted status summary for UI display
     func getStatusSummary() -> (title: String, subtitle: String?)
 }
 
-// MARK: - Implementation (DIP: Coordinates services via abstractions)
+// MARK: - Implementation
 
+/// Coordinates between services and provides a unified API for the UI layer
 final class AppCoordinator: AppCoordinatorProtocol {
-    // Dependencies
     private let serverStore: ServerStore
     private let selectionService: ServerSelectionServiceProtocol
     private let connectionManager: VPNConnectionManagerProtocol
@@ -69,7 +93,6 @@ final class AppCoordinator: AppCoordinatorProtocol {
     func connectToBestServer() async throws {
         let servers = serverStore.servers
         
-        // Use async parallel testing for best server selection
         guard let bestServer = await selectionService.selectBestServerAsync(from: servers) else {
             throw NSError(domain: "AppCoordinator", code: 1, userInfo: [NSLocalizedDescriptionKey: "No servers available"])
         }
@@ -99,7 +122,7 @@ final class AppCoordinator: AppCoordinatorProtocol {
         return preferencesManager.loadPreferences()
     }
     
-    // MARK: - UI Helpers (for presentation layer)
+    // MARK: - UI Helpers
     
     @MainActor
     func getStatusSummary() -> (title: String, subtitle: String?) {
@@ -139,4 +162,3 @@ final class AppCoordinator: AppCoordinatorProtocol {
         return (title, subtitle)
     }
 }
-
