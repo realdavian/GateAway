@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  TsukubaVPNGate
+//  GateAway
 //
 //  Created by Wei Xin on 12/12/2025.
 //

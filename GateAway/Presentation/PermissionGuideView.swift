@@ -17,7 +17,7 @@ struct PermissionGuideView: View {
                     Text("Permission Required")
                         .font(.title2)
                         .fontWeight(.bold)
-                    Text("Allow TsukubaVPNGate to control Tunnelblick")
+                    Text("Allow GateAway to control Tunnelblick")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -42,8 +42,8 @@ struct PermissionGuideView: View {
                 
                 InstructionStep(
                     number: 3,
-                    title: "Enable TsukubaVPNGate",
-                    description: "Find 'TsukubaVPNGate' in the list and check the box next to 'Tunnelblick'"
+                    title: "Enable GateAway",
+                    description: "Find 'GateAway' in the list and check the box next to 'Tunnelblick'"
                 )
                 
                 InstructionStep(

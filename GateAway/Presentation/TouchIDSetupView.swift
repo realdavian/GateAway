@@ -1,6 +1,6 @@
 //
 //  TouchIDSetupView.swift
-//  TsukubaVPNGate
+//  GateAway
 //
 //  Helps users enable Touch ID for sudo operations
 //
@@ -126,7 +126,7 @@ struct TouchIDSetupView: View {
                                         .font(.headline)
                                 }
                                 
-                                Text("Let TsukubaVPNGate configure Touch ID for you automatically.")
+                                Text("Let GateAway configure Touch ID for you automatically.")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                     .fixedSize(horizontal: false, vertical: true)

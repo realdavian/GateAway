@@ -79,7 +79,7 @@
 			name = GateAway;
 			packageProductDependencies = (
 			);
-			productName = TsukubaVPNGate;
+			productName = GateAway;
 			productReference = CEEE4A652EEC3E620071FAAC /* GateAway.app */;
 			productType = "com.apple.product-type.application";
 		};

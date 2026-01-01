@@ -5,7 +5,11 @@ import SwiftUI
 /// VPN backend status section showing OpenVPN installation status
 struct OverviewTabBackendSection: View {
     @State private var isOpenVPNInstalled: Bool = false
+    @State private var isHomebrewInstalled: Bool = false
     @State private var openVPNVersion: String = ""
+    @State private var showingInstaller: Bool = false
+    @State private var showingHomebrewConfirm: Bool = false
+    @State private var installCommand: String = ""
     
     var body: some View {
         SettingsSection(
@@ -14,6 +18,7 @@ struct OverviewTabBackendSection: View {
             iconColor: .green
         ) {
             VStack(alignment: .leading, spacing: 12) {
+                // OpenVPN status row
                 HStack(spacing: 12) {
                     ZStack {
                         Circle()
@@ -42,9 +47,9 @@ struct OverviewTabBackendSection: View {
                     
                     Spacer()
                     
-                    if !isOpenVPNInstalled {
+                    if !isOpenVPNInstalled && !showingInstaller {
                         Button("Install") {
-                            // TODO: Trigger installation
+                            startInstallation()
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -54,11 +59,67 @@ struct OverviewTabBackendSection: View {
                         .buttonStyle(.plain)
                     }
                 }
+                
+                // Homebrew info (if not installed)
+                if !isHomebrewInstalled && !isOpenVPNInstalled && !showingInstaller {
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle.fill")
+                            .foregroundColor(.blue)
+                        
+                        Text("Requires Homebrew package manager")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(10)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                
+                // Embedded terminal for installation
+                if showingInstaller {
+                    EmbeddedTerminalView(
+                        command: installCommand,
+                        onComplete: { success in
+                            showingInstaller = false
+                            if success {
+                                checkDependencies()
+                            }
+                        }
+                    )
+                }
             }
         }
         .onAppear {
-            checkOpenVPNStatus()
+            checkDependencies()
         }
+        .alert(isPresented: $showingHomebrewConfirm) {
+            Alert(
+                title: Text("Install Homebrew?"),
+                message: Text("OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?"),
+                primaryButton: .default(Text("Install Both")) {
+                    installCommand = """
+                    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \\
+                    eval "$(/opt/homebrew/bin/brew shellenv)" && \\
+                    brew install openvpn
+                    """
+                    showingInstaller = true
+                },
+                secondaryButton: .cancel()
+            )
+        }
+    }
+    
+    private func checkDependencies() {
+        checkHomebrewStatus()
+        checkOpenVPNStatus()
+    }
+    
+    private func checkHomebrewStatus() {
+        let brewPaths = [
+            "/opt/homebrew/bin/brew",
+            "/usr/local/bin/brew"
+        ]
+        isHomebrewInstalled = brewPaths.contains { FileManager.default.fileExists(atPath: $0) }
     }
     
     private func checkOpenVPNStatus() {
@@ -72,7 +133,6 @@ struct OverviewTabBackendSection: View {
             if fileManager.fileExists(atPath: path) {
                 isOpenVPNInstalled = true
                 
-                // Get version
                 let task = Process()
                 task.launchPath = path
                 task.arguments = ["--version"]
@@ -99,5 +159,16 @@ struct OverviewTabBackendSection: View {
         }
         
         isOpenVPNInstalled = false
+    }
+    
+    private func startInstallation() {
+        if isHomebrewInstalled {
+            // Homebrew exists, just install OpenVPN
+            installCommand = "brew install openvpn"
+            showingInstaller = true
+        } else {
+            // Ask user if they want to install Homebrew
+            showingHomebrewConfirm = true
+        }
     }
 }

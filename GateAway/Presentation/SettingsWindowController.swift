@@ -23,7 +23,7 @@ final class SettingsWindowController: NSWindowController {
         let hosting = NSHostingController(rootView: rootView)
         
         let window = NSWindow(contentViewController: hosting)
-        window.title = "TsukubaVPNGate Settings"
+        window.title = "GateAway Settings"
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.setContentSize(NSSize(width: 900, height: 650))
         window.minSize = NSSize(width: 900, height: 650)

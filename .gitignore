@@ -1,6 +1,6 @@
 .DS_Store
 .test-scripts
-.tsukubavpngate-dev
+.gateaway-dev
 build
 logs
 *.dmg

@@ -43,7 +43,7 @@ final class StatusBarController: NSObject {
         super.init()
         
         // Give it a unique autosave name so macOS remembers its position and visibility
-        statusItem.autosaveName = "TsukubaVPNGateStatusItem"
+        statusItem.autosaveName = "GateAwayStatusItem"
         statusItem.isVisible = true
         
         configureStatusButton()
@@ -81,7 +81,7 @@ final class StatusBarController: NSObject {
         let (iconName, isTemplate) = iconForStatisticsState(state)
         
         // Create and configure image
-        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "TsukubaVPNGate") {
+        if let image = NSImage(systemSymbolName: iconName, accessibilityDescription: "GateAway") {
             // Template images automatically adapt to light/dark mode and menu bar styling
             image.isTemplate = isTemplate
             
@@ -356,11 +356,11 @@ final class StatusBarController: NSObject {
             
             Steps to fix:
             1. Click "Open System Settings" below
-            2. Find "TsukubaVPNGate" in the Automation list
+            2. Find "GateAway" in the Automation list
             3. Check the box next to "Tunnelblick"
             4. Try connecting again
             
-            Note: If TsukubaVPNGate doesn't appear yet, close System Settings and try connecting once more to trigger the permission dialog.
+            Note: If GateAway doesn't appear yet, close System Settings and try connecting once more to trigger the permission dialog.
             """
             
             alert.addButton(withTitle: "Open System Settings")

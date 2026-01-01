@@ -95,7 +95,7 @@ struct PermissionGuideContentView: View {
                     .font(.title)
                     .fontWeight(.bold)
                 
-                Text("TsukubaVPNGate needs permission to control Tunnelblick")
+                Text("GateAway needs permission to control Tunnelblick")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -118,7 +118,7 @@ struct PermissionGuideContentView: View {
                     InstructionStepView(
                         number: 2,
                         title: "Click 'OK' on the system dialog",
-                        description: "This allows TsukubaVPNGate to automatically connect and disconnect VPN servers.",
+                        description: "This allows GateAway to automatically connect and disconnect VPN servers.",
                         icon: "hand.point.up.left.fill"
                     )
                     
