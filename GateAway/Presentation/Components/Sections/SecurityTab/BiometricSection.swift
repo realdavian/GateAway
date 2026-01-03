@@ -4,114 +4,114 @@ import SwiftUI
 
 /// Biometric authentication section for Touch ID setup and management
 struct SecurityTabBiometricSection: View {
-    @Environment(\.keychainManager) private var keychainManager
-    
-    @State private var isPasswordStored: Bool = false
-    @Binding var showingPasswordSetup: Bool
-    @Binding var showingTestResult: Bool
-    @Binding var testResultMessage: String
-    
-    var body: some View {
-        SettingsSection(
-            title: "Biometric Authentication",
-            icon: "touchid",
-            iconColor: .green
-        ) {
-            VStack(alignment: .leading, spacing: 16) {
-                // Main toggle/status row
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Touch ID for VPN Connections")
-                            .font(.subheadline)
-                        
-                        if isPasswordStored {
-                            Text("Password stored securely in Keychain")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        } else {
-                            Text("Store admin password for Touch ID authentication")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    // Status indicator
-                    if isPasswordStored {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("Enabled")
-                                .font(.caption)
-                                .foregroundColor(.green)
-                        }
-                    } else {
-                        HStack(spacing: 6) {
-                            Image(systemName: "xmark.circle")
-                                .foregroundColor(.secondary)
-                            Text("Disabled")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-                
-                // Action buttons row
-                HStack {
-                    Spacer()
-                    
-                    if !isPasswordStored {
-                        Button("Enable Touch ID...") {
-                            showingPasswordSetup = true
-                        }
-                    } else {
-                        Button("Test Touch ID...") {
-                            testTouchID()
-                        }
-                        
-                        Button("Remove...") {
-                            removeStoredPassword()
-                        }
-                    }
-                }
+  @Environment(\.keychainManager) private var keychainManager
+
+  @State private var isPasswordStored: Bool = false
+  @Binding var showingPasswordSetup: Bool
+  @Binding var showingTestResult: Bool
+  @Binding var testResultMessage: String
+
+  var body: some View {
+    SettingsSection(
+      title: "Biometric Authentication",
+      icon: "touchid",
+      iconColor: .green
+    ) {
+      VStack(alignment: .leading, spacing: 16) {
+        // Main toggle/status row
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Touch ID for VPN Connections")
+              .font(.subheadline)
+
+            if isPasswordStored {
+              Text("Password stored securely in Keychain")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            } else {
+              Text("Store admin password for Touch ID authentication")
+                .font(.caption)
+                .foregroundColor(.secondary)
             }
-        }
-        .onAppear {
-            isPasswordStored = keychainManager.isPasswordStored()
-        }
-    }
-    
-    private func testTouchID() {
-        Task {
-            do {
-                let _ = try await keychainManager.getPassword()
-                await MainActor.run {
-                    testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
-                    showingTestResult = true
-                }
-            } catch {
-                await MainActor.run {
-                    testResultMessage = "❌ Failed: \(error.localizedDescription)"
-                    showingTestResult = true
-                }
+          }
+
+          Spacer()
+
+          // Status indicator
+          if isPasswordStored {
+            HStack(spacing: 6) {
+              Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+              Text("Enabled")
+                .font(.caption)
+                .foregroundColor(.green)
             }
+          } else {
+            HStack(spacing: 6) {
+              Image(systemName: "xmark.circle")
+                .foregroundColor(.secondary)
+              Text("Disabled")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+          }
         }
-    }
-    
-    private func removeStoredPassword() {
-        do {
-            try keychainManager.deletePassword()
-            isPasswordStored = false
-            Log.success("Password removed from Keychain")
-        } catch {
-            testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
-            showingTestResult = true
+
+        // Action buttons row
+        HStack {
+          Spacer()
+
+          if !isPasswordStored {
+            Button("Enable Touch ID...") {
+              showingPasswordSetup = true
+            }
+          } else {
+            Button("Test Touch ID...") {
+              testTouchID()
+            }
+
+            Button("Remove...") {
+              removeStoredPassword()
+            }
+          }
         }
+      }
     }
-    
-    /// Call this after password is saved to refresh state
-    func refreshPasswordStatus() {
-        isPasswordStored = keychainManager.isPasswordStored()
+    .onAppear {
+      isPasswordStored = keychainManager.isPasswordStored()
     }
+  }
+
+  private func testTouchID() {
+    Task {
+      do {
+        let _ = try await keychainManager.getPassword()
+        await MainActor.run {
+          testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
+          showingTestResult = true
+        }
+      } catch {
+        await MainActor.run {
+          testResultMessage = "❌ Failed: \(error.localizedDescription)"
+          showingTestResult = true
+        }
+      }
+    }
+  }
+
+  private func removeStoredPassword() {
+    do {
+      try keychainManager.deletePassword()
+      isPasswordStored = false
+      Log.success("Password removed from Keychain")
+    } catch {
+      testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
+      showingTestResult = true
+    }
+  }
+
+  /// Call this after password is saved to refresh state
+  func refreshPasswordStatus() {
+    isPasswordStored = keychainManager.isPasswordStored()
+  }
 }

@@ -1,0 +1,18 @@
+disabled_rules:
+  - trailing_whitespace
+  - trailing_newline
+  - trailing_comma
+  - inclusive_language
+  - identifier_name
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+
+line_length:
+  warning: 120
+  error: 150
+
+type_body_length:
+  warning: 300
+  error: 400
