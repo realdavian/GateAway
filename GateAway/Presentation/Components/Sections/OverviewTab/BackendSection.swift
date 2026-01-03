@@ -164,7 +164,7 @@ struct OverviewTabBackendSection: View {
   private func startInstallation() {
     if isHomebrewInstalled {
       // Homebrew exists, just install OpenVPN
-      installCommand = "brew install openvpn"
+      installCommand = ShellCommands.brewInstallOpenVPN
       showingInstaller = true
     } else {
       // Ask user if they want to install Homebrew

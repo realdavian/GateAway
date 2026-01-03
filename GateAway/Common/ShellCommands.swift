@@ -19,29 +19,13 @@ enum ShellCommands {
   /// Kill all OpenVPN processes forcefully
   static let killOpenVPNForce = "killall -9 openvpn 2>/dev/null || true"
 
-  // MARK: - OpenVPN
-
-  /// Build OpenVPN start command
+  /// Build OpenVPN start command (password handled by ScriptRunner)
   /// - Parameters:
   ///   - binary: Path to openvpn binary
   ///   - configPath: Path to .ovpn config file
-  /// - Returns: Shell command string
-  static func startVPN(binary: String, configPath: String) -> String {
-    "\(binary) --config '\(configPath)'"
-  }
-
-  /// Build OpenVPN start command with password
-  /// - Parameters:
-  ///   - binary: Path to openvpn binary
-  ///   - configPath: Path to .ovpn config file
-  ///   - password: Admin password for sudo
-  /// - Returns: Shell command string
-  static func startVPNWithSudo(binary: String, configPath: String, password: String) -> String {
-    """
-    killall openvpn 2>/dev/null || true
-    sleep 1
-    echo '\(password)' | sudo -S \(binary) --config '\(configPath)'
-    """
+  /// - Returns: Shell command string (kill existing + start new)
+  static func startVPNCommand(binary: String, configPath: String) -> String {
+    "\(killOpenVPN) && \(binary) --config '\(configPath)'"
   }
 
   // MARK: - Management Socket

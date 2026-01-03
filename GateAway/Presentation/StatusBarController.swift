@@ -358,38 +358,9 @@ final class StatusBarController: NSObject {
   private func showError(title: String, message: String) {
     let alert = NSAlert()
     alert.messageText = title
+    alert.informativeText = message
     alert.alertStyle = .warning
-
-    // Check if it's an automation permission error
-    if message.contains("Automation permission") || message.contains("not authorized")
-      || message.contains("Permission Required")
-    {
-      alert.informativeText = """
-        \(message)
-
-        Steps to fix:
-        1. Click "Open System Settings" below
-        2. Find "GateAway" in the Automation list
-        3. Check the box next to "Tunnelblick"
-        4. Try connecting again
-
-        Note: If GateAway doesn't appear yet, close System Settings and try connecting once more to trigger the permission dialog.
-        """
-
-      alert.addButton(withTitle: "Open System Settings")
-      alert.addButton(withTitle: "Cancel")
-
-      if alert.runModal() == .alertFirstButtonReturn {
-        if let url = URL(
-          string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Automation")
-        {
-          NSWorkspace.shared.open(url)
-        }
-      }
-    } else {
-      alert.informativeText = message
-      alert.addButton(withTitle: "OK")
-      alert.runModal()
-    }
+    alert.addButton(withTitle: "OK")
+    alert.runModal()
   }
 }

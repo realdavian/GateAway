@@ -190,21 +190,14 @@ final class OpenVPNController: VPNControlling {
     // Check if there are still processes running
     let processCount = getOpenVPNProcessCount()
     if processCount > 0 {
-      Log.warning("\(processCount) process(es) still running, using killall...")
+      Log.warning("\(processCount) process(es) still running, using force kill...")
 
-      let killScript = """
-        do shell script "killall -9 openvpn 2>/dev/null || true" with administrator privileges
-        """
-
-      var error: NSDictionary?
-      if let scriptObject = NSAppleScript(source: killScript) {
-        let _ = scriptObject.executeAndReturnError(&error)
-        if let error = error {
-          Log.warning("Kill script error: \(error)")
-        } else {
-          Log.success("All OpenVPN processes killed")
-          try await Task.sleep(nanoseconds: 500_000_000)
-        }
+      do {
+        _ = try await scriptRunner.run(ShellCommands.killOpenVPNForce, privileged: true)
+        Log.success("All OpenVPN processes killed")
+        try await Task.sleep(nanoseconds: 500_000_000)
+      } catch {
+        Log.warning("Force kill failed: \(error.localizedDescription)")
       }
     }
 
@@ -340,8 +333,8 @@ final class OpenVPNController: VPNControlling {
     // Use ScriptRunner for privileged execution - handles auth caching automatically
     Log.debug("Starting OpenVPN via ScriptRunner...")
 
-    // Build VPN startup command
-    let vpnCommand = "\(ShellCommands.killOpenVPN) && \(openVPNBinary) --config '\(configPath)'"
+    // Build VPN startup command using centralized ShellCommands
+    let vpnCommand = ShellCommands.startVPNCommand(binary: openVPNBinary, configPath: configPath)
 
     do {
       _ = try await scriptRunner.run(vpnCommand, privileged: true)
