@@ -16,6 +16,7 @@ final class OpenVPNController: VPNControlling {
   private var managementSocket: FileHandle?
   private let vpnMonitor: VPNMonitorProtocol
   private let keychainManager: KeychainManagerProtocol
+  private let scriptRunner: ScriptRunnerProtocol
 
   private let openVPNBinary: String
   private let configDirectory: String
@@ -50,9 +51,13 @@ final class OpenVPNController: VPNControlling {
 
   // MARK: - Init
 
-  init(vpnMonitor: VPNMonitorProtocol, keychainManager: KeychainManagerProtocol) {
+  init(
+    vpnMonitor: VPNMonitorProtocol, keychainManager: KeychainManagerProtocol,
+    scriptRunner: ScriptRunnerProtocol
+  ) {
     self.vpnMonitor = vpnMonitor
     self.keychainManager = keychainManager
+    self.scriptRunner = scriptRunner
 
     // Check Homebrew paths for OpenVPN using centralized constants
     openVPNBinary =
@@ -332,80 +337,32 @@ final class OpenVPNController: VPNControlling {
   // MARK: - OpenVPN Process
 
   private func startOpenVPN(configPath: String) async throws {
-    if keychainManager.isPasswordStored() {
-      Log.debug("Password found in Keychain, using Touch ID...")
+    // Use ScriptRunner for privileged execution - handles auth caching automatically
+    Log.debug("Starting OpenVPN via ScriptRunner...")
 
-      do {
-        let password = try await keychainManager.getPassword()
-        Log.success("Retrieved password via Touch ID")
-        try await startOpenVPNWithPassword(password, configPath: configPath)
-      } catch KeychainManager.KeychainError.authenticationCancelled {
-        Log.warning("User cancelled Touch ID")
-        throw OpenVPNError.connectionFailed("Touch ID authentication cancelled")
-      } catch {
-        Log.warning("Keychain retrieval failed: \(error). Falling back to system prompt.")
-        try await startOpenVPNWithAppleScript(configPath: configPath)
-      }
-    } else {
-      Log.debug("No password in Keychain, using system auth prompt...")
-      try await startOpenVPNWithAppleScript(configPath: configPath)
-    }
-  }
-
-  private func startOpenVPNWithPassword(_ password: String, configPath: String) async throws {
-    let command = ShellCommands.startVPNWithSudo(
-      binary: openVPNBinary,
-      configPath: configPath,
-      password: password
-    )
-
-    let task = Process()
-    task.launchPath = "/bin/sh"
-    task.arguments = ["-c", command]
-    task.standardOutput = Pipe()
-    task.standardError = Pipe()
+    // Build VPN startup command
+    let vpnCommand = "\(ShellCommands.killOpenVPN) && \(openVPNBinary) --config '\(configPath)'"
 
     do {
-      try task.run()
-      Log.success("Process started with Keychain password")
+      _ = try await scriptRunner.run(vpnCommand, privileged: true)
+      Log.success("OpenVPN process started via ScriptRunner")
+
+      // Wait for process to initialize
       try await Task.sleep(nanoseconds: 2_000_000_000)
       try await verifyOpenVPNStarted()
+    } catch ScriptRunnerError.authenticationFailed {
+      Log.warning("Authentication failed or cancelled")
+      throw OpenVPNError.connectionFailed("Authentication failed or cancelled")
+    } catch ScriptRunnerError.commandFailed(let msg) {
+      Log.error("Command failed: \(msg)")
+      throw OpenVPNError.connectionFailed("Failed to start OpenVPN: \(msg)")
     } catch {
-      Log.error("Failed to start with password: \(error)")
+      Log.error("Unexpected error: \(error)")
       throw OpenVPNError.connectionFailed("Failed to start OpenVPN: \(error.localizedDescription)")
     }
   }
 
-  private func startOpenVPNWithAppleScript(configPath: String) async throws {
-    let script = """
-      do shell script "killall openvpn 2>/dev/null || true; sleep 1; \(openVPNBinary) --config '\(configPath)'" with administrator privileges
-      """
-
-    Log.debug("Requesting admin privileges...")
-
-    guard let scriptObject = NSAppleScript(source: script) else {
-      throw OpenVPNError.connectionFailed("Failed to create admin prompt script")
-    }
-
-    var executionError: NSDictionary?
-    let _ = scriptObject.executeAndReturnError(&executionError)
-
-    if let error = executionError {
-      let errorCode = error["NSAppleScriptErrorNumber"] as? Int ?? 0
-      let errorMessage = error["NSAppleScriptErrorBriefMessage"] as? String ?? "Unknown error"
-      Log.error("Admin script error (code: \(errorCode)): \(errorMessage)")
-
-      if errorCode == -128 {
-        throw OpenVPNError.connectionFailed("User cancelled authentication")
-      } else {
-        throw OpenVPNError.connectionFailed("Script execution failed: \(errorMessage)")
-      }
-    }
-
-    Log.success("AppleScript completed - process should be starting")
-    try await Task.sleep(nanoseconds: 2_000_000_000)
-    try await verifyOpenVPNStarted()
-  }
+  // MARK: - Deprecated: Old auth methods removed - now using ScriptRunner
 
   private func verifyOpenVPNStarted() async throws {
     if isOpenVPNRunning() {

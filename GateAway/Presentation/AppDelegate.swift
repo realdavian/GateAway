@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // MARK: - Services
 
   private let keychainManager = KeychainManager()
+  private lazy var scriptRunner = ScriptRunner(keychainManager: keychainManager)
   private let cacheManager = ServerCacheManager()
   private let telemetry = ConnectionTelemetry()
 
@@ -28,7 +29,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
-    Log.info("App terminating - cleaning up VPN...")
+    Log.info("App terminating - cleaning up...")
+    scriptRunner.clearCredentials()
     Task {
       try? await connectionManager?.disconnect()
     }
@@ -98,7 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     let vpnController: VPNControlling = OpenVPNController(
       vpnMonitor: vpnMonitor,
-      keychainManager: keychainManager
+      keychainManager: keychainManager,
+      scriptRunner: scriptRunner
     )
     Log.debug("Using OpenVPN CLI backend")
 
