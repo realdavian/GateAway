@@ -1,0 +1,126 @@
+/* 
+  Localizable.strings
+  GateAway
+  
+  Japanese
+*/
+
+// MARK: - Common
+"OK" = "OK";
+"Cancel" = "キャンセル";
+"Connect" = "接続";
+"Disconnect" = "切断";
+"Close" = "閉じる";
+"Remove" = "削除";
+"Refresh" = "更新";
+"Settings" = "設定";
+"Settings…" = "設定…";
+"Quit" = "終了";
+"Retry" = "再試行";
+"Switch" = "切り替え";
+
+// MARK: - Connection States
+"Connected" = "接続済み";
+"Connecting" = "接続中";
+"Disconnected" = "未接続";
+"Disconnecting" = "切断中";
+"Disconnecting..." = "切断中...";
+"Reconnecting" = "再接続中";
+"Not Connected" = "未接続";
+
+// MARK: - Tabs
+"Overview" = "概要";
+"Servers" = "サーバー";
+"Monitoring" = "モニタリング";
+"Security" = "セキュリティ";
+"Blacklist" = "ブラックリスト";
+
+// MARK: - Menu Items
+"Refresh Server List" = "サーバーリストを更新";
+"Connect (Best)" = "接続（最速）";
+"⏹ Stop Connecting" = "⏹ 接続を停止";
+"Best by Country" = "国別の最速サーバー";
+
+// MARK: - Monitoring Tab
+"Connection Status" = "接続ステータス";
+"VPN:" = "VPN:";
+"Network Statistics" = "ネットワーク統計";
+"Downloaded" = "ダウンロード済み";
+"Uploaded" = "アップロード済み";
+"Download Speed" = "ダウンロード速度";
+"Upload Speed" = "アップロード速度";
+"Technical Details" = "技術的詳細";
+"Protocol" = "プロトコル";
+"Port" = "ポート";
+"Cipher" = "暗号化";
+"Connected Since" = "接続開始時刻";
+"Connect to a VPN server to see real-time statistics" = "リアルタイム統計を表示するにはVPNサーバーに接続してください";
+
+// MARK: - Servers Tab
+"Search by country, IP, or hostname" = "国、IP、またはホスト名で検索";
+"Sort by" = "並べ替え";
+"Country" = "国";
+"Ping" = "Ping";
+"Speed" = "速度";
+"Score" = "スコア";
+"Actions" = "操作";
+"Loading servers..." = "サーバーを読み込み中...";
+"No servers available" = "利用可能なサーバーはありません";
+"Connect to Server?" = "サーバーに接続しますか？";
+"Connect to %@ (%@)?" = "%@ (%@) に接続しますか？";
+"Switch Server?" = "サーバーを切り替えますか？";
+"You are currently connected. Switch to %@ (%@)?" = "現在接続中です。%@ (%@) に切り替えますか？";
+"Connection Failed" = "接続失敗";
+"Remove from Blacklist?" = "ブラックリストから削除しますか？";
+"Remove %@ (%@) from blacklist?" = "%@ (%@) をブラックリストから削除しますか？";
+
+// MARK: - Blacklist Tab
+"Add Server" = "サーバーを追加";
+"No Blacklisted Servers" = "ブラックリストに登録されたサーバーはありません";
+"Servers you blacklist will appear here" = "ブラックリストに登録したサーバーがここに表示されます";
+"Hostname" = "ホスト名";
+"Added" = "追加日";
+"Expires" = "有効期限";
+"Auto-cleanup expired" = "期限切れを自動クリーンアップ";
+
+// MARK: - Security Tab
+"VPN Credentials" = "VPN資格情報";
+"VPNGate servers use default credentials. These work for all VPNGate servers." = "VPNGateサーバーはデフォルトの資格情報を使用します。これらはすべてのVPNGateサーバーで機能します。";
+"Username" = "ユーザー名";
+"Password" = "パスワード";
+"Note: These are the default VPNGate credentials and cannot be changed." = "注意：これらはデフォルトのVPNGate資格情報であり、変更することはできません。";
+"Biometric Authentication" = "生体認証";
+"Touch ID for VPN Connections" = "VPN接続にTouch IDを使用";
+"Password stored securely in Keychain" = "キーチェーンに安全に保存されたパスワード";
+"Store admin password for Touch ID authentication" = "Touch ID認証のために管理者パスワードを保存する";
+"Enabled" = "有効";
+"Disabled" = "無効";
+"Enable Touch ID..." = "Touch IDを有効にする...";
+"Test Touch ID..." = "Touch IDをテスト...";
+"Remove..." = "削除...";
+"Protection" = "保護";
+"Kill Switch" = "キルスイッチ";
+"Block internet if VPN disconnects unexpectedly" = "VPNが予期せず切断された場合にインターネットをブロックする";
+"Blocks ALL traffic when VPN drops" = "VPN切断時にすべてのトラフィックをブロック";
+"IPv6 Leak Protection" = "IPv6リーク保護";
+"Disable IPv6 to prevent identity leaks" = "身元漏洩を防ぐためにIPv6を無効にする";
+"Auto-Reconnect" = "自動再接続";
+"Automatically reconnect if VPN connection drops" = "VPN接続が切断された場合に自動的に再接続する";
+"Cache" = "キャッシュ";
+"Server List Cache" = "サーバーリストキャッシュ";
+"Cache TTL" = "キャッシュTTL";
+"How long to keep the server list cached before refreshing." = "更新前にサーバーリストをキャッシュに保持する期間。";
+"Clear Cache" = "キャッシュを消去";
+"No cached data" = "キャッシュデータなし";
+
+// MARK: - Password Setup
+"GateAway wants to store your password" = "GateAwayはパスワードの保存を求めています";
+"Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain." = "VPN接続でTouch IDを有効にするには、管理者パスワードを入力してください。パスワードはmacOSキーチェーンに安全に保存されます。";
+"Enable Touch ID" = "Touch IDを有効にする";
+"Password:" = "パスワード:";
+"Enter your administrator password" = "管理者パスワードを入力してください";
+"This is the password you use for sudo commands." = "これはsudoコマンドに使用するパスワードです。";
+"Incorrect Password" = "パスワードが正しくありません";
+"The password you entered is incorrect. Please try again." = "入力されたパスワードが正しくありません。もう一度お試しください。";
+"Try Again" = "再試行";
+"Failed to Save Password" = "パスワードの保存に失敗しました";

@@ -1,0 +1,126 @@
+/* 
+  Localizable.strings
+  GateAway
+  
+  English (Base)
+*/
+
+// MARK: - Common
+"OK" = "OK";
+"Cancel" = "Cancel";
+"Connect" = "Connect";
+"Disconnect" = "Disconnect";
+"Close" = "Close";
+"Remove" = "Remove";
+"Refresh" = "Refresh";
+"Settings" = "Settings";
+"Settings…" = "Settings…";
+"Quit" = "Quit";
+"Retry" = "Retry";
+"Switch" = "Switch";
+
+// MARK: - Connection States
+"Connected" = "Connected";
+"Connecting" = "Connecting";
+"Disconnected" = "Disconnected";
+"Disconnecting" = "Disconnecting";
+"Disconnecting..." = "Disconnecting...";
+"Reconnecting" = "Reconnecting";
+"Not Connected" = "Not Connected";
+
+// MARK: - Tabs
+"Overview" = "Overview";
+"Servers" = "Servers";
+"Monitoring" = "Monitoring";
+"Security" = "Security";
+"Blacklist" = "Blacklist";
+
+// MARK: - Menu Items
+"Refresh Server List" = "Refresh Server List";
+"Connect (Best)" = "Connect (Best)";
+"⏹ Stop Connecting" = "⏹ Stop Connecting";
+"Best by Country" = "Best by Country";
+
+// MARK: - Monitoring Tab
+"Connection Status" = "Connection Status";
+"VPN:" = "VPN:";
+"Network Statistics" = "Network Statistics";
+"Downloaded" = "Downloaded";
+"Uploaded" = "Uploaded";
+"Download Speed" = "Download Speed";
+"Upload Speed" = "Upload Speed";
+"Technical Details" = "Technical Details";
+"Protocol" = "Protocol";
+"Port" = "Port";
+"Cipher" = "Cipher";
+"Connected Since" = "Connected Since";
+"Connect to a VPN server to see real-time statistics" = "Connect to a VPN server to see real-time statistics";
+
+// MARK: - Servers Tab
+"Search by country, IP, or hostname" = "Search by country, IP, or hostname";
+"Sort by" = "Sort by";
+"Country" = "Country";
+"Ping" = "Ping";
+"Speed" = "Speed";
+"Score" = "Score";
+"Actions" = "Actions";
+"Loading servers..." = "Loading servers...";
+"No servers available" = "No servers available";
+"Connect to Server?" = "Connect to Server?";
+"Connect to %@ (%@)?" = "Connect to %@ (%@)?";
+"Switch Server?" = "Switch Server?";
+"You are currently connected. Switch to %@ (%@)?" = "You are currently connected. Switch to %@ (%@)?";
+"Connection Failed" = "Connection Failed";
+"Remove from Blacklist?" = "Remove from Blacklist?";
+"Remove %@ (%@) from blacklist?" = "Remove %@ (%@) from blacklist?";
+
+// MARK: - Blacklist Tab
+"Add Server" = "Add Server";
+"No Blacklisted Servers" = "No Blacklisted Servers";
+"Servers you blacklist will appear here" = "Servers you blacklist will appear here";
+"Hostname" = "Hostname";
+"Added" = "Added";
+"Expires" = "Expires";
+"Auto-cleanup expired" = "Auto-cleanup expired";
+
+// MARK: - Security Tab
+"VPN Credentials" = "VPN Credentials";
+"VPNGate servers use default credentials. These work for all VPNGate servers." = "VPNGate servers use default credentials. These work for all VPNGate servers.";
+"Username" = "Username";
+"Password" = "Password";
+"Note: These are the default VPNGate credentials and cannot be changed." = "Note: These are the default VPNGate credentials and cannot be changed.";
+"Biometric Authentication" = "Biometric Authentication";
+"Touch ID for VPN Connections" = "Touch ID for VPN Connections";
+"Password stored securely in Keychain" = "Password stored securely in Keychain";
+"Store admin password for Touch ID authentication" = "Store admin password for Touch ID authentication";
+"Enabled" = "Enabled";
+"Disabled" = "Disabled";
+"Enable Touch ID..." = "Enable Touch ID...";
+"Test Touch ID..." = "Test Touch ID...";
+"Remove..." = "Remove...";
+"Protection" = "Protection";
+"Kill Switch" = "Kill Switch";
+"Block internet if VPN disconnects unexpectedly" = "Block internet if VPN disconnects unexpectedly";
+"Blocks ALL traffic when VPN drops" = "Blocks ALL traffic when VPN drops";
+"IPv6 Leak Protection" = "IPv6 Leak Protection";
+"Disable IPv6 to prevent identity leaks" = "Disable IPv6 to prevent identity leaks";
+"Auto-Reconnect" = "Auto-Reconnect";
+"Automatically reconnect if VPN connection drops" = "Automatically reconnect if VPN connection drops";
+"Cache" = "Cache";
+"Server List Cache" = "Server List Cache";
+"Cache TTL" = "Cache TTL";
+"How long to keep the server list cached before refreshing." = "How long to keep the server list cached before refreshing.";
+"Clear Cache" = "Clear Cache";
+"No cached data" = "No cached data";
+
+// MARK: - Password Setup
+"GateAway wants to store your password" = "GateAway wants to store your password";
+"Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain." = "Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain.";
+"Enable Touch ID" = "Enable Touch ID";
+"Password:" = "Password:";
+"Enter your administrator password" = "Enter your administrator password";
+"This is the password you use for sudo commands." = "This is the password you use for sudo commands.";
+"Incorrect Password" = "Incorrect Password";
+"The password you entered is incorrect. Please try again." = "The password you entered is incorrect. Please try again.";
+"Try Again" = "Try Again";
+"Failed to Save Password" = "Failed to Save Password";

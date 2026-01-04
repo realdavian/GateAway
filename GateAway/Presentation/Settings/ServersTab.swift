@@ -60,7 +60,7 @@ struct ServersTab: View {
         HStack {
           Image(systemName: "magnifyingglass")
             .foregroundColor(.secondary)
-          TextField("Search by country, IP, or hostname", text: $searchText)
+          TextField("Search by country, IP, or hostname".localized, text: $searchText)
             .textFieldStyle(.plain)
         }
         .padding(8)
@@ -68,7 +68,7 @@ struct ServersTab: View {
         .cornerRadius(8)
 
         // Sort picker
-        Picker("Sort by", selection: $sortBy) {
+        Picker("Sort by".localized, selection: $sortBy) {
           ForEach(SortOption.allCases, id: \.self) { option in
             Label(option.rawValue, systemImage: option.icon)
               .tag(option)
@@ -121,29 +121,29 @@ struct ServersTab: View {
           Text("")
             .frame(width: 40)
 
-          Text("Country")
+          Text("Country".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 140, alignment: .leading)
 
-          Text("Ping")
+          Text("Ping".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 60)
 
-          Text("Speed")
+          Text("Speed".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 80)
 
-          Text("Score")
+          Text("Score".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 120)
 
           Spacer()
 
-          Text("Actions")
+          Text("Actions".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 80, alignment: .trailing)
@@ -160,7 +160,7 @@ struct ServersTab: View {
         if serverStore.isLoading && filteredServers.isEmpty {
           VStack {
             ProgressView()
-            Text("Loading servers...")
+            Text("Loading servers...".localized)
               .foregroundColor(.secondary)
               .padding(.top, 8)
           }
@@ -169,7 +169,7 @@ struct ServersTab: View {
             Image(systemName: "server.rack")
               .font(.system(size: 48))
               .foregroundColor(.secondary)
-            Text("No servers available")
+            Text("No servers available".localized)
               .font(.title3)
               .foregroundColor(.secondary)
             if let error = serverStore.lastError {
@@ -179,7 +179,7 @@ struct ServersTab: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             }
-            Button("Retry") {
+            Button("Retry".localized) {
               serverStore.loadServers(forceRefresh: true)
             }
             .buttonStyle(.plain)
@@ -270,10 +270,10 @@ struct ServersTab: View {
         switch alertType {
         case .connect(let server):
           return Alert(
-            title: Text("Connect to Server?"),
-            message: Text("Connect to \(server.countryLong) (\(server.ip))?"),
+            title: Text("Connect to Server?".localized),
+            message: Text("Connect to %@ (%@)?".localized(with: server.countryLong, server.ip)),
             primaryButton: .default(
-              Text("Connect"),
+              Text("Connect".localized),
               action: {
                 connectToServer(server)
               }),
@@ -282,12 +282,13 @@ struct ServersTab: View {
 
         case .reconnect(let server):
           return Alert(
-            title: Text("Switch Server?"),
+            title: Text("Switch Server?".localized),
             message: Text(
-              "You are currently connected to \(connectedServerName ?? "a server"). Disconnect and connect to \(server.countryLong) (\(server.ip))?"
+              "You are currently connected. Switch to %@ (%@)?".localized(
+                with: server.countryLong, server.ip)
             ),
             primaryButton: .default(
-              Text("Switch"),
+              Text("Switch".localized),
               action: {
                 coordinatorWrapper.disconnect { _ in
                   DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -300,17 +301,18 @@ struct ServersTab: View {
 
         case .error(let message):
           return Alert(
-            title: Text("Connection Failed"),
+            title: Text("Connection Failed".localized),
             message: Text(message),
-            dismissButton: .default(Text("OK"))
+            dismissButton: .default(Text("OK".localized))
           )
 
         case .blacklistRemove(let server):
           return Alert(
-            title: Text("Remove from Blacklist?"),
-            message: Text("Remove \(server.countryLong) (\(server.ip)) from blacklist?"),
+            title: Text("Remove from Blacklist?".localized),
+            message: Text(
+              "Remove %@ (%@) from blacklist?".localized(with: server.countryLong, server.ip)),
             primaryButton: .destructive(
-              Text("Remove"),
+              Text("Remove".localized),
               action: {
                 blacklistManager.removeFromBlacklist(serverId: server.ip)
               }),

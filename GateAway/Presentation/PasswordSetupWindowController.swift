@@ -19,11 +19,10 @@ class PasswordSetupWindowController {
     let alert = NSAlert()
 
     // Configure alert style like Apple's auth dialogs
-    alert.messageText = "GateAway wants to store your password"
-    alert.informativeText = """
-      Enter your administrator password to enable Touch ID for VPN connections. \
-      Your password will be securely stored in the macOS Keychain.
-      """
+    alert.messageText = "GateAway wants to store your password".localized
+    alert.informativeText =
+      "Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain."
+      .localized
     alert.alertStyle = .informational
 
     // App icon (or custom icon)
@@ -36,8 +35,8 @@ class PasswordSetupWindowController {
     alert.accessoryView = accessoryView
 
     // Buttons (Apple style: action button on right)
-    alert.addButton(withTitle: "Enable Touch ID")
-    alert.addButton(withTitle: "Cancel")
+    alert.addButton(withTitle: "Enable Touch ID".localized)
+    alert.addButton(withTitle: "Cancel".localized)
 
     // Get password field from accessory view
     guard
@@ -65,19 +64,20 @@ class PasswordSetupWindowController {
     let containerView = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 80))
 
     // Label
-    let label = NSTextField(labelWithString: "Password:")
+    let label = NSTextField(labelWithString: "Password:".localized)
     label.font = .systemFont(ofSize: 13)
     label.frame = NSRect(x: 0, y: 50, width: 300, height: 20)
 
     // Password field with Apple styling
     let passwordField = NSSecureTextField(frame: NSRect(x: 0, y: 20, width: 300, height: 24))
-    passwordField.placeholderString = "Enter your administrator password"
+    passwordField.placeholderString = "Enter your administrator password".localized
     passwordField.font = .systemFont(ofSize: 13)
     passwordField.bezelStyle = .roundedBezel
     passwordField.focusRingType = .default
 
     // Helper text
-    let helperText = NSTextField(labelWithString: "This is the password you use for sudo commands.")
+    let helperText = NSTextField(
+      labelWithString: "This is the password you use for sudo commands.".localized)
     helperText.font = .systemFont(ofSize: 11)
     helperText.textColor = .secondaryLabelColor
     helperText.frame = NSRect(x: 0, y: 0, width: 300, height: 16)
@@ -118,11 +118,12 @@ class PasswordSetupWindowController {
 
   private func showInvalidPasswordAlert() {
     let errorAlert = NSAlert()
-    errorAlert.messageText = "Incorrect Password"
-    errorAlert.informativeText = "The password you entered is incorrect. Please try again."
+    errorAlert.messageText = "Incorrect Password".localized
+    errorAlert.informativeText =
+      "The password you entered is incorrect. Please try again.".localized
     errorAlert.alertStyle = .warning
-    errorAlert.addButton(withTitle: "Try Again")
-    errorAlert.addButton(withTitle: "Cancel")
+    errorAlert.addButton(withTitle: "Try Again".localized)
+    errorAlert.addButton(withTitle: "Cancel".localized)
 
     if errorAlert.runModal() == .alertFirstButtonReturn {
       // User wants to try again
@@ -138,7 +139,7 @@ class PasswordSetupWindowController {
     } catch {
       // Show error alert
       let errorAlert = NSAlert()
-      errorAlert.messageText = "Failed to Save Password"
+      errorAlert.messageText = "Failed to Save Password".localized
       errorAlert.informativeText = error.localizedDescription
       errorAlert.alertStyle = .critical
       errorAlert.runModal()

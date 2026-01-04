@@ -34,7 +34,7 @@ struct MonitoringTab: View {
 
         // Connection Status Card
         VStack(alignment: .leading, spacing: 16) {
-          Label("Connection Status", systemImage: "wifi")
+          Label("Connection Status".localized, systemImage: "wifi")
             .font(.headline)
             .foregroundColor(.primary)
 
@@ -69,7 +69,7 @@ struct MonitoringTab: View {
                 VStack(alignment: .trailing, spacing: 4) {
                   if let vpnIP = stats.vpnIP {
                     HStack(spacing: 4) {
-                      Text("VPN:")
+                      Text("VPN:".localized)
                         .font(.caption2)
                         .foregroundColor(.secondary)
                       Text(vpnIP)
@@ -100,21 +100,21 @@ struct MonitoringTab: View {
         // Network Statistics
         if case .connected = connectionState {
           VStack(alignment: .leading, spacing: 16) {
-            Label("Network Statistics", systemImage: "chart.bar.fill")
+            Label("Network Statistics".localized, systemImage: "chart.bar.fill")
               .font(.headline)
 
             VStack(spacing: 12) {
               StatisticRow(
                 icon: "arrow.down.circle.fill",
                 iconColor: .green,
-                label: "Downloaded",
+                label: "Downloaded".localized,
                 value: stats.formattedBytesReceived
               )
 
               StatisticRow(
                 icon: "arrow.up.circle.fill",
                 iconColor: .blue,
-                label: "Uploaded",
+                label: "Uploaded".localized,
                 value: stats.formattedBytesSent
               )
 
@@ -123,14 +123,14 @@ struct MonitoringTab: View {
               StatisticRow(
                 icon: "arrow.down",
                 iconColor: .green,
-                label: "Download Speed",
+                label: "Download Speed".localized,
                 value: stats.formattedDownloadSpeed
               )
 
               StatisticRow(
                 icon: "arrow.up",
                 iconColor: .blue,
-                label: "Upload Speed",
+                label: "Upload Speed".localized,
                 value: stats.formattedUploadSpeed
               )
             }
@@ -144,16 +144,16 @@ struct MonitoringTab: View {
 
           // Technical Details
           VStack(alignment: .leading, spacing: 16) {
-            Label("Technical Details", systemImage: "gearshape.2.fill")
+            Label("Technical Details".localized, systemImage: "gearshape.2.fill")
               .font(.headline)
 
             VStack(spacing: 12) {
-              DetailRow(label: "Protocol", value: serverInfo.protocolType ?? "OpenVPN")
-              DetailRow(label: "Port", value: serverInfo.port.map(String.init) ?? "1194")
-              DetailRow(label: "Cipher", value: serverInfo.cipher ?? "AES-128-CBC")
+              DetailRow(label: "Protocol".localized, value: serverInfo.protocolType ?? "OpenVPN")
+              DetailRow(label: "Port".localized, value: serverInfo.port.map(String.init) ?? "1194")
+              DetailRow(label: "Cipher".localized, value: serverInfo.cipher ?? "AES-128-CBC")
 
               if let str = connectedSinceString {
-                DetailRow(label: "Connected Since", value: str)
+                DetailRow(label: "Connected Since".localized, value: str)
               }
             }
             .padding()
@@ -171,10 +171,10 @@ struct MonitoringTab: View {
               .font(.system(size: 48))
               .foregroundColor(.secondary)
 
-            Text("Not Connected")
+            Text("Not Connected".localized)
               .font(.headline)
 
-            Text("Connect to a VPN server to see real-time statistics")
+            Text("Connect to a VPN server to see real-time statistics".localized)
               .font(.caption)
               .foregroundColor(.secondary)
               .multilineTextAlignment(.center)

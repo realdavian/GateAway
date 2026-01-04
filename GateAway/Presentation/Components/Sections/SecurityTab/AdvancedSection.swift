@@ -9,17 +9,17 @@ struct SecurityTabAdvancedSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "Cache",
+      title: "Cache".localized,
       icon: "archivebox.fill",
       iconColor: .gray
     ) {
       VStack(alignment: .leading, spacing: 8) {
         // Server Cache TTL
         HStack {
-          Text("Server List Cache")
+          Text("Server List Cache".localized)
             .font(.subheadline)
           Spacer()
-          Picker("Cache TTL", selection: $cacheTTL) {
+          Picker("Cache TTL".localized, selection: $cacheTTL) {
             Text("5 min").tag(5)
             Text("15 min").tag(15)
             Text("30 min").tag(30)
@@ -31,7 +31,7 @@ struct SecurityTabAdvancedSection: View {
           .frame(width: 120)
         }
 
-        Text("How long to keep the server list cached before refreshing.")
+        Text("How long to keep the server list cached before refreshing.".localized)
           .font(.caption)
           .foregroundColor(.secondary)
 
@@ -70,7 +70,7 @@ private struct CacheStatusView: View {
 
         Spacer()
 
-        Button("Clear Cache") {
+        Button("Clear Cache".localized) {
           cacheManager.clearCache()
           Log.debug("Cache cleared by user")
         }
@@ -82,7 +82,7 @@ private struct CacheStatusView: View {
         Image(systemName: "tray")
           .foregroundColor(.secondary)
           .font(.caption)
-        Text("No cached data")
+        Text("No cached data".localized)
           .font(.caption)
           .foregroundColor(.secondary)
       }

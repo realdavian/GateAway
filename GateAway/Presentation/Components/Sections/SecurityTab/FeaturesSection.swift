@@ -10,26 +10,26 @@ struct SecurityTabFeaturesSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "Protection",
+      title: "Protection".localized,
       icon: "shield.fill",
       iconColor: .purple
     ) {
       VStack(alignment: .leading, spacing: 16) {
         // Kill Switch
         SecurityToggleRow(
-          title: "Kill Switch",
-          description: "Block internet if VPN disconnects unexpectedly",
+          title: "Kill Switch".localized,
+          description: "Block internet if VPN disconnects unexpectedly".localized,
           isOn: $killSwitchEnabled,
           warningIcon: true,
-          warningText: "Blocks ALL traffic when VPN drops"
+          warningText: "Blocks ALL traffic when VPN drops".localized
         )
 
         Divider()
 
         // IPv6 Leak Protection
         SecurityToggleRow(
-          title: "IPv6 Leak Protection",
-          description: "Disable IPv6 to prevent identity leaks",
+          title: "IPv6 Leak Protection".localized,
+          description: "Disable IPv6 to prevent identity leaks".localized,
           isOn: $ipv6Protection
         )
 
@@ -37,8 +37,8 @@ struct SecurityTabFeaturesSection: View {
 
         // Auto-reconnect
         SecurityToggleRow(
-          title: "Auto-Reconnect",
-          description: "Automatically reconnect if VPN connection drops",
+          title: "Auto-Reconnect".localized,
+          description: "Automatically reconnect if VPN connection drops".localized,
           isOn: $autoReconnect
         )
       }

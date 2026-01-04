@@ -15,7 +15,7 @@ struct SecurityTabBiometricSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "Biometric Authentication",
+      title: "Biometric Authentication".localized,
       icon: "touchid",
       iconColor: .green
     ) {
@@ -23,15 +23,15 @@ struct SecurityTabBiometricSection: View {
         // Main toggle/status row
         HStack {
           VStack(alignment: .leading, spacing: 4) {
-            Text("Touch ID for VPN Connections")
+            Text("Touch ID for VPN Connections".localized)
               .font(.subheadline)
 
             if isPasswordStored {
-              Text("Password stored securely in Keychain")
+              Text("Password stored securely in Keychain".localized)
                 .font(.caption)
                 .foregroundColor(.secondary)
             } else {
-              Text("Store admin password for Touch ID authentication")
+              Text("Store admin password for Touch ID authentication".localized)
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
@@ -44,7 +44,7 @@ struct SecurityTabBiometricSection: View {
             HStack(spacing: 6) {
               Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.green)
-              Text("Enabled")
+              Text("Enabled".localized)
                 .font(.caption)
                 .foregroundColor(.green)
             }
@@ -52,7 +52,7 @@ struct SecurityTabBiometricSection: View {
             HStack(spacing: 6) {
               Image(systemName: "xmark.circle")
                 .foregroundColor(.secondary)
-              Text("Disabled")
+              Text("Disabled".localized)
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
@@ -64,15 +64,15 @@ struct SecurityTabBiometricSection: View {
           Spacer()
 
           if !isPasswordStored {
-            Button("Enable Touch ID...") {
+            Button("Enable Touch ID...".localized) {
               onEnableTouchID()
             }
           } else {
-            Button("Test Touch ID...") {
+            Button("Test Touch ID...".localized) {
               testTouchID()
             }
 
-            Button("Remove...") {
+            Button("Remove...".localized) {
               removeStoredPassword()
             }
           }

@@ -150,7 +150,7 @@ final class StatusBarController: NSObject {
 
     // Primary actions
     let refreshItem = NSMenuItem(
-      title: "Refresh Server List", action: #selector(onRefresh), keyEquivalent: "r")
+      title: "Refresh Server List".localized, action: #selector(onRefresh), keyEquivalent: "r")
     refreshItem.target = self
     menu.addItem(refreshItem)
 
@@ -161,15 +161,17 @@ final class StatusBarController: NSObject {
     switch state {
     case .disconnected, .error:
       connectionItem = NSMenuItem(
-        title: "Connect (Best)", action: #selector(onConnectBest), keyEquivalent: "")
+        title: "Connect (Best)".localized, action: #selector(onConnectBest), keyEquivalent: "")
     case .connecting, .reconnecting:
       connectionItem = NSMenuItem(
-        title: "⏹ Stop Connecting", action: #selector(onCancelConnection), keyEquivalent: "")
+        title: "⏹ Stop Connecting".localized, action: #selector(onCancelConnection),
+        keyEquivalent: "")
     case .connected:
       connectionItem = NSMenuItem(
-        title: "Disconnect", action: #selector(onDisconnect), keyEquivalent: "")
+        title: "Disconnect".localized, action: #selector(onDisconnect), keyEquivalent: "")
     case .disconnecting:
-      connectionItem = NSMenuItem(title: "Disconnecting...", action: nil, keyEquivalent: "")
+      connectionItem = NSMenuItem(
+        title: "Disconnecting...".localized, action: nil, keyEquivalent: "")
       connectionItem.isEnabled = false
     }
 
@@ -184,11 +186,12 @@ final class StatusBarController: NSObject {
     menu.addItem(.separator())
 
     let settingsItem = NSMenuItem(
-      title: "Settings…", action: #selector(onSettings), keyEquivalent: ",")
+      title: "Settings…".localized, action: #selector(onSettings), keyEquivalent: ",")
     settingsItem.target = self
     menu.addItem(settingsItem)
 
-    let quitItem = NSMenuItem(title: "Quit", action: #selector(onQuit), keyEquivalent: "q")
+    let quitItem = NSMenuItem(
+      title: "Quit".localized, action: #selector(onQuit), keyEquivalent: "q")
     quitItem.target = self
     menu.addItem(quitItem)
 
@@ -196,7 +199,7 @@ final class StatusBarController: NSObject {
   }
 
   private func buildCountrySubmenu(menu: NSMenu) {
-    let byCountry = NSMenuItem(title: "Best by Country", action: nil, keyEquivalent: "")
+    let byCountry = NSMenuItem(title: "Best by Country".localized, action: nil, keyEquivalent: "")
     let byCountryMenu = NSMenu()
 
     let countries = coordinator.getAvailableCountries()

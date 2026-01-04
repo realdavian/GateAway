@@ -15,11 +15,11 @@ struct SettingsView: View {
 
     var title: String {
       switch self {
-      case .overview: return "Overview"
-      case .servers: return "Servers"
-      case .monitoring: return "Monitoring"
-      case .security: return "Security"
-      case .blacklist: return "Blacklist"
+      case .overview: return "Overview".localized
+      case .servers: return "Servers".localized
+      case .monitoring: return "Monitoring".localized
+      case .security: return "Security".localized
+      case .blacklist: return "Blacklist".localized
       }
     }
 
@@ -41,7 +41,7 @@ struct SettingsView: View {
         Image(systemName: "gearshape.fill")
           .font(.title2)
           .foregroundColor(.accentColor)
-        Text("Settings")
+        Text("Settings".localized)
           .font(.system(.title2, design: .default).weight(.semibold))
         Spacer()
       }

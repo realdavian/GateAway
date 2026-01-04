@@ -13,7 +13,7 @@ struct SecurityTabCredentialsSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "VPN Credentials",
+      title: "VPN Credentials".localized,
       icon: "key.fill",
       iconColor: .blue
     ) {
@@ -22,9 +22,11 @@ struct SecurityTabCredentialsSection: View {
         HStack(spacing: 8) {
           Image(systemName: "info.circle.fill")
             .foregroundColor(.blue)
-          Text("VPNGate servers use default credentials. These work for all VPNGate servers.")
-            .font(.caption)
-            .foregroundColor(.secondary)
+          Text(
+            "VPNGate servers use default credentials. These work for all VPNGate servers.".localized
+          )
+          .font(.caption)
+          .foregroundColor(.secondary)
         }
         .padding(12)
         .background(Color.blue.opacity(0.1))
@@ -32,11 +34,11 @@ struct SecurityTabCredentialsSection: View {
 
         // Username field
         VStack(alignment: .leading, spacing: 8) {
-          Text("Username")
+          Text("Username".localized)
             .font(.caption)
             .foregroundColor(.secondary)
 
-          TextField("Username", text: $vpnUsername)
+          TextField("Username".localized, text: $vpnUsername)
             .textFieldStyle(.plain)
             .padding(10)
             .background(Color.gray.opacity(0.1))
@@ -46,17 +48,17 @@ struct SecurityTabCredentialsSection: View {
 
         // Password field
         VStack(alignment: .leading, spacing: 8) {
-          Text("Password")
+          Text("Password".localized)
             .font(.caption)
             .foregroundColor(.secondary)
 
           HStack {
             if showPassword {
-              TextField("Password", text: $vpnPassword)
+              TextField("Password".localized, text: $vpnPassword)
                 .textFieldStyle(.plain)
                 .disabled(true)
             } else {
-              SecureField("Password", text: $vpnPassword)
+              SecureField("Password".localized, text: $vpnPassword)
                 .disabled(true)
             }
 
@@ -72,7 +74,7 @@ struct SecurityTabCredentialsSection: View {
         }
 
         // Note about defaults
-        Text("Note: These are the default VPNGate credentials and cannot be changed.")
+        Text("Note: These are the default VPNGate credentials and cannot be changed.".localized)
           .font(.caption2)
           .foregroundColor(.orange)
       }

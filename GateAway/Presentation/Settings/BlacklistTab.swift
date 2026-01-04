@@ -32,7 +32,7 @@ struct BlacklistTab: View {
 
         // Auto-cleanup toggle
         HStack {
-          Toggle("Auto-cleanup expired", isOn: $autoCleanup)
+          Toggle("Auto-cleanup expired".localized, isOn: $autoCleanup)
             .toggleStyle(SwitchToggleStyle())
             .font(.caption)
         }
@@ -45,7 +45,7 @@ struct BlacklistTab: View {
         Button(action: { showingAddDialog = true }) {
           HStack(spacing: 6) {
             Image(systemName: "plus")
-            Text("Add Server")
+            Text("Add Server".localized)
           }
           .padding(.horizontal, 16)
           .padding(.vertical, 8)
@@ -67,10 +67,10 @@ struct BlacklistTab: View {
             .font(.system(size: 48))
             .foregroundColor(.secondary)
 
-          Text("No Blacklisted Servers")
+          Text("No Blacklisted Servers".localized)
             .font(.headline)
 
-          Text("Servers you blacklist will appear here")
+          Text("Servers you blacklist will appear here".localized)
             .font(.caption)
             .foregroundColor(.secondary)
         }
@@ -81,22 +81,22 @@ struct BlacklistTab: View {
           Text("")
             .frame(width: 36)
 
-          Text("Hostname")
+          Text("Hostname".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-          Text("Country")
+          Text("Country".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 80, alignment: .leading)
 
-          Text("Added")
+          Text("Added".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 80, alignment: .leading)
 
-          Text("Expires")
+          Text("Expires".localized)
             .font(.system(size: 11, weight: .semibold))
             .foregroundColor(.secondary)
             .frame(width: 80, alignment: .leading)
@@ -141,12 +141,12 @@ struct BlacklistTab: View {
     }
     .alert(isPresented: $showingRemoveConfirm) {
       Alert(
-        title: Text("Remove from Blacklist?"),
+        title: Text("Remove from Blacklist?".localized),
         message: serverToRemove.map {
-          Text("Remove \($0.hostname) (\($0.country)) from blacklist?")
+          Text("Remove %@ (%@) from blacklist?".localized(with: $0.hostname, $0.country))
         },
         primaryButton: .destructive(
-          Text("Remove"),
+          Text("Remove".localized),
           action: {
             if let server = serverToRemove {
               blacklistManager.removeFromBlacklist(serverId: server.id)

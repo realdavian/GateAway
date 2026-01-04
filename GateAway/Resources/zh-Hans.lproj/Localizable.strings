@@ -1,0 +1,126 @@
+/* 
+  Localizable.strings
+  GateAway
+  
+  Chinese Simplified
+*/
+
+// MARK: - Common
+"OK" = "确定";
+"Cancel" = "取消";
+"Connect" = "连接";
+"Disconnect" = "断开连接";
+"Close" = "关闭";
+"Remove" = "移除";
+"Refresh" = "刷新";
+"Settings" = "设置";
+"Settings…" = "设置…";
+"Quit" = "退出";
+"Retry" = "重试";
+"Switch" = "切换";
+
+// MARK: - Connection States
+"Connected" = "已连接";
+"Connecting" = "正在连接";
+"Disconnected" = "未连接";
+"Disconnecting" = "正在断开";
+"Disconnecting..." = "正在断开...";
+"Reconnecting" = "正在重新连接";
+"Not Connected" = "未连接";
+
+// MARK: - Tabs
+"Overview" = "概览";
+"Servers" = "服务器";
+"Monitoring" = "监控";
+"Security" = "安全";
+"Blacklist" = "黑名单";
+
+// MARK: - Menu Items
+"Refresh Server List" = "刷新服务器列表";
+"Connect (Best)" = "连接（最佳）";
+"⏹ Stop Connecting" = "⏹ 停止连接";
+"Best by Country" = "按国家最佳";
+
+// MARK: - Monitoring Tab
+"Connection Status" = "连接状态";
+"VPN:" = "VPN:";
+"Network Statistics" = "网络统计";
+"Downloaded" = "已下载";
+"Uploaded" = "已上传";
+"Download Speed" = "下载速度";
+"Upload Speed" = "上传速度";
+"Technical Details" = "技术细节";
+"Protocol" = "协议";
+"Port" = "端口";
+"Cipher" = "加密方式";
+"Connected Since" = "连接自";
+"Connect to a VPN server to see real-time statistics" = "连接到 VPN 服务器以查看实时统计信息";
+
+// MARK: - Servers Tab
+"Search by country, IP, or hostname" = "按国家、IP 或主机名搜索";
+"Sort by" = "排序方式";
+"Country" = "国家";
+"Ping" = "延迟";
+"Speed" = "速度";
+"Score" = "评分";
+"Actions" = "操作";
+"Loading servers..." = "正在加载服务器...";
+"No servers available" = "没有可用的服务器";
+"Connect to Server?" = "连接到服务器？";
+"Connect to %@ (%@)?" = "连接到 %@ (%@)？";
+"Switch Server?" = "切换服务器？";
+"You are currently connected. Switch to %@ (%@)?" = "您当前已连接。是否切换到 %@ (%@)？";
+"Connection Failed" = "连接失败";
+"Remove from Blacklist?" = "从黑名单中移除？";
+"Remove %@ (%@) from blacklist?" = "是否将 %@ (%@) 从黑名单中移除？";
+
+// MARK: - Blacklist Tab
+"Add Server" = "添加服务器";
+"No Blacklisted Servers" = "没有黑名单服务器";
+"Servers you blacklist will appear here" = "您拉黑的服务器将显示在这里";
+"Hostname" = "主机名";
+"Added" = "添加时间";
+"Expires" = "过期时间";
+"Auto-cleanup expired" = "自动清理过期项";
+
+// MARK: - Security Tab
+"VPN Credentials" = "VPN 凭据";
+"VPNGate servers use default credentials. These work for all VPNGate servers." = "VPNGate 服务器使用默认凭据。这些凭据适用于所有 VPNGate 服务器。";
+"Username" = "用户名";
+"Password" = "密码";
+"Note: These are the default VPNGate credentials and cannot be changed." = "注意：这些是默认的 VPNGate 凭据，无法更改。";
+"Biometric Authentication" = "生物识别认证";
+"Touch ID for VPN Connections" = "用于 VPN 连接的 Touch ID";
+"Password stored securely in Keychain" = "密码已安全存储在钥匙串中";
+"Store admin password for Touch ID authentication" = "存储管理员密码用于 Touch ID 认证";
+"Enabled" = "已启用";
+"Disabled" = "已禁用";
+"Enable Touch ID..." = "启用 Touch ID...";
+"Test Touch ID..." = "测试 Touch ID...";
+"Remove..." = "移除...";
+"Protection" = "保护";
+"Kill Switch" = "杀手开关 (Kill Switch)";
+"Block internet if VPN disconnects unexpectedly" = "如果 VPN 意外断开，则阻止网络连接";
+"Blocks ALL traffic when VPN drops" = "当 VPN 断开时阻止所有流量";
+"IPv6 Leak Protection" = "IPv6 泄漏保护";
+"Disable IPv6 to prevent identity leaks" = "禁用 IPv6 以防止身份泄漏";
+"Auto-Reconnect" = "自动重新连接";
+"Automatically reconnect if VPN connection drops" = "如果 VPN 连接断开，则自动重新连接";
+"Cache" = "缓存";
+"Server List Cache" = "服务器列表缓存";
+"Cache TTL" = "缓存有效期 (TTL)";
+"How long to keep the server list cached before refreshing." = "刷新前服务器列表在缓存中保留多长时间。";
+"Clear Cache" = "清除缓存";
+"No cached data" = "无缓存数据";
+
+// MARK: - Password Setup
+"GateAway wants to store your password" = "GateAway 想要存储您的密码";
+"Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain." = "请输入您的管理员密码以启用用于 VPN 连接的 Touch ID。您的密码将安全地存储在 macOS 钥匙串中。";
+"Enable Touch ID" = "启用 Touch ID";
+"Password:" = "密码：";
+"Enter your administrator password" = "输入您的管理员密码";
+"This is the password you use for sudo commands." = "这是您用于 sudo 命令的密码。";
+"Incorrect Password" = "密码错误";
+"The password you entered is incorrect. Please try again." = "您输入的密码不正确。请重试。";
+"Try Again" = "再试一次";
+"Failed to Save Password" = "保存密码失败";

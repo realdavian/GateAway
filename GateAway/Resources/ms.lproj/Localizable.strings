@@ -1,0 +1,126 @@
+/* 
+  Localizable.strings
+  GateAway
+  
+  Malay
+*/
+
+// MARK: - Common
+"OK" = "OK";
+"Cancel" = "Batal";
+"Connect" = "Sambung";
+"Disconnect" = "Putuskan";
+"Close" = "Tutup";
+"Remove" = "Buang";
+"Refresh" = "Muat Semula";
+"Settings" = "Tetapan";
+"Settings…" = "Tetapan…";
+"Quit" = "Keluar";
+"Retry" = "Cuba Lagi";
+"Switch" = "Tukar";
+
+// MARK: - Connection States
+"Connected" = "Disambung";
+"Connecting" = "Menyambung";
+"Disconnected" = "Diputuskan";
+"Disconnecting" = "Memutuskan";
+"Disconnecting..." = "Memutuskan...";
+"Reconnecting" = "Menyambung Semula";
+"Not Connected" = "Tidak Disambung";
+
+// MARK: - Tabs
+"Overview" = "Gambaran Keseluruhan";
+"Servers" = "Pelayan";
+"Monitoring" = "Pemantauan";
+"Security" = "Keselamatan";
+"Blacklist" = "Senarai Hitam";
+
+// MARK: - Menu Items
+"Refresh Server List" = "Muat Semula Senarai Pelayan";
+"Connect (Best)" = "Sambung (Terbaik)";
+"⏹ Stop Connecting" = "⏹ Berhenti Menyambung";
+"Best by Country" = "Terbaik mengikut Negara";
+
+// MARK: - Monitoring Tab
+"Connection Status" = "Status Sambungan";
+"VPN:" = "VPN:";
+"Network Statistics" = "Statistik Rangkaian";
+"Downloaded" = "Dimuat Turun";
+"Uploaded" = "Dimuat Naik";
+"Download Speed" = "Kelajuan Muat Turun";
+"Upload Speed" = "Kelajuan Muat Naik";
+"Technical Details" = "Butiran Teknikal";
+"Protocol" = "Protokol";
+"Port" = "Port";
+"Cipher" = "Sifer";
+"Connected Since" = "Disambung Sejak";
+"Connect to a VPN server to see real-time statistics" = "Sambung ke pelayan VPN untuk melihat statistik masa nyata";
+
+// MARK: - Servers Tab
+"Search by country, IP, or hostname" = "Cari mengikut negara, IP, atau nama hos";
+"Sort by" = "Susun mengikut";
+"Country" = "Negara";
+"Ping" = "Ping";
+"Speed" = "Kelajuan";
+"Score" = "Skor";
+"Actions" = "Tindakan";
+"Loading servers..." = "Memuatkan pelayan...";
+"No servers available" = "Tiada pelayan tersedia";
+"Connect to Server?" = "Sambung ke Pelayan?";
+"Connect to %@ (%@)?" = "Sambung ke %@ (%@)?";
+"Switch Server?" = "Tukar Pelayan?";
+"You are currently connected. Switch to %@ (%@)?" = "Anda sedang disambung. Tukar ke %@ (%@)?";
+"Connection Failed" = "Sambungan Gagal";
+"Remove from Blacklist?" = "Buang daripada Senarai Hitam?";
+"Remove %@ (%@) from blacklist?" = "Buang %@ (%@) daripada senarai hitam?";
+
+// MARK: - Blacklist Tab
+"Add Server" = "Tambah Pelayan";
+"No Blacklisted Servers" = "Tiada Pelayan Senarai Hitam";
+"Servers you blacklist will appear here" = "Pelayan yang anda senarai hitamkan akan muncul di sini";
+"Hostname" = "Nama Hos";
+"Added" = "Ditambah";
+"Expires" = "Tamat Tempoh";
+"Auto-cleanup expired" = "Pembersihan automatik tamat tempoh";
+
+// MARK: - Security Tab
+"VPN Credentials" = "Kredensial VPN";
+"VPNGate servers use default credentials. These work for all VPNGate servers." = "Pelayan VPNGate menggunakan kredensial lalai. Ini berfungsi untuk semua pelayan VPNGate.";
+"Username" = "Nama Pengguna";
+"Password" = "Kata Laluan";
+"Note: These are the default VPNGate credentials and cannot be changed." = "Nota: Ini adalah kredensial VPNGate lalai dan tidak boleh diubah.";
+"Biometric Authentication" = "Pengesahan Biometrik";
+"Touch ID for VPN Connections" = "Touch ID untuk Sambungan VPN";
+"Password stored securely in Keychain" = "Kata laluan disimpan dengan selamat dalam Keychain";
+"Store admin password for Touch ID authentication" = "Simpan kata laluan admin untuk pengesahan Touch ID";
+"Enabled" = "Didayakan";
+"Disabled" = "Dilumpuhkan";
+"Enable Touch ID..." = "Dayakan Touch ID...";
+"Test Touch ID..." = "Uji Touch ID...";
+"Remove..." = "Buang...";
+"Protection" = "Perlindungan";
+"Kill Switch" = "Suis Mati";
+"Block internet if VPN disconnects unexpectedly" = "Sekat internet jika VPN terputus tanpa dijangka";
+"Blocks ALL traffic when VPN drops" = "Sekat SEMUA trafik apabila VPN terputus";
+"IPv6 Leak Protection" = "Perlindungan Kebocoran IPv6";
+"Disable IPv6 to prevent identity leaks" = "Lumpuhkan IPv6 untuk mengelakkan kebocoran identiti";
+"Auto-Reconnect" = "Sambung Semula Automatik";
+"Automatically reconnect if VPN connection drops" = "Sambung semula secara automatik jika sambungan VPN terputus";
+"Cache" = "Cache";
+"Server List Cache" = "Cache Senarai Pelayan";
+"Cache TTL" = "TTL Cache";
+"How long to keep the server list cached before refreshing." = "Berapa lama senarai pelayan disimpan dalam cache sebelum dimuat semula.";
+"Clear Cache" = "Kosongkan Cache";
+"No cached data" = "Tiada data cache";
+
+// MARK: - Password Setup
+"GateAway wants to store your password" = "GateAway mahu menyimpan kata laluan anda";
+"Enter your administrator password to enable Touch ID for VPN connections. Your password will be securely stored in the macOS Keychain." = "Masukkan kata laluan pentadbir anda untuk mendayakan Touch ID bagi sambungan VPN. Kata laluan anda akan disimpan dengan selamat dalam macOS Keychain.";
+"Enable Touch ID" = "Dayakan Touch ID";
+"Password:" = "Kata Laluan:";
+"Enter your administrator password" = "Masukkan kata laluan pentadbir anda";
+"This is the password you use for sudo commands." = "Ini adalah kata laluan yang anda gunakan untuk araun sudo.";
+"Incorrect Password" = "Kata Laluan Salah";
+"The password you entered is incorrect. Please try again." = "Kata laluan yang anda masukkan adalah salah. Sila cuba lagi.";
+"Try Again" = "Cuba Lagi";
+"Failed to Save Password" = "Gagal Menyimpan Kata Laluan";
