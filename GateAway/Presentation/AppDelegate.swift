@@ -6,14 +6,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // MARK: - Services
 
   private let keychainManager = KeychainManager()
-  private lazy var scriptRunner = ScriptRunner(keychainManager: keychainManager)
+  private let passwordPromptService: PasswordPromptServiceProtocol = PasswordPromptService.shared
+  private let permissionService: PermissionServiceProtocol = PermissionService.shared
+  private lazy var scriptRunner = ScriptRunner(
+    keychainManager: keychainManager,
+    passwordPromptService: passwordPromptService
+  )
   private let cacheManager = ServerCacheManager()
   private let telemetry = ConnectionTelemetry()
+  private let vpnGateAPI: VPNGateAPIProtocol = VPNGateAPI(session: URLSession.shared)
 
   // MARK: - Stores
 
   private let monitoringStore = MonitoringStore()
-  private lazy var serverStore = ServerStore(cache: cacheManager)
+  private lazy var serverStore = ServerStore(api: vpnGateAPI, cache: cacheManager)
   private lazy var vpnMonitor = VPNMonitor()
 
   // MARK: - UI Components
@@ -101,7 +107,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let vpnController: VPNControlling = OpenVPNController(
       vpnMonitor: vpnMonitor,
       keychainManager: keychainManager,
-      scriptRunner: scriptRunner
+      scriptRunner: scriptRunner,
+      permissionService: permissionService
     )
     Log.debug("Using OpenVPN CLI backend")
 

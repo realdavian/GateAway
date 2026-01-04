@@ -116,7 +116,9 @@ struct OverviewTabBackendSection: View {
 
   private func checkDependencies() {
     checkHomebrewStatus()
-    checkOpenVPNStatus()
+    Task {
+      await checkOpenVPNStatus()
+    }
   }
 
   private func checkHomebrewStatus() {
@@ -125,40 +127,86 @@ struct OverviewTabBackendSection: View {
     }
   }
 
-  private func checkOpenVPNStatus() {
+  private func checkOpenVPNStatus() async {
     let fileManager = FileManager.default
 
     for path in Constants.Paths.openVPNBinaryPaths {
       if fileManager.fileExists(atPath: path) {
         isOpenVPNInstalled = true
 
-        let task = Process()
-        task.launchPath = path
-        task.arguments = ["--version"]
-
-        let pipe = Pipe()
-        task.standardOutput = pipe
-
-        do {
-          try task.run()
-          task.waitUntilExit()
-
-          let data = pipe.fileHandleForReading.readDataToEndOfFile()
-          if let output = String(data: data, encoding: .utf8),
-            let firstLine = output.components(separatedBy: "\n").first,
-            let versionRange = firstLine.range(of: #"\d+\.\d+\.\d+"#, options: .regularExpression)
-          {
-            openVPNVersion = String(firstLine[versionRange])
-          }
-        } catch {
-          Log.warning("Failed to get OpenVPN version")
+        let version = await getOpenVPNVersion(at: path)
+        if let version = version {
+          openVPNVersion = version
         }
-
         return
       }
     }
 
     isOpenVPNInstalled = false
+  }
+
+  private func getOpenVPNVersion(at path: String) async -> String? {
+    await withCheckedContinuation { continuation in
+      let task = Process()
+      task.launchPath = path
+      task.arguments = ["--version"]
+
+      let pipe = Pipe()
+      task.standardOutput = pipe
+
+      var hasResumed = false
+      let resumeLock = NSLock()
+
+      task.terminationHandler = { _ in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        var version: String?
+        if let output = String(data: data, encoding: .utf8),
+          let firstLine = output.components(separatedBy: "\n").first,
+          let versionRange = firstLine.range(of: #"\d+\.\d+\.\d+"#, options: .regularExpression)
+        {
+          version = String(firstLine[versionRange])
+        }
+        continuation.resume(returning: version)
+      }
+
+      do {
+        try task.run()
+
+        // Timeout after 5 seconds
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: nil)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        Log.warning("Failed to get OpenVPN version")
+        continuation.resume(returning: nil)
+      }
+    }
   }
 
   private func startInstallation() {

@@ -18,7 +18,7 @@ final class ServerStore: ObservableObject {
 
   // MARK: - Init
 
-  init(api: VPNGateAPIProtocol = VPNGateAPI(), cache: ServerCacheManagerProtocol) {
+  init(api: VPNGateAPIProtocol, cache: ServerCacheManagerProtocol) {
     self.api = api
     self.cache = cache
 

@@ -109,14 +109,50 @@ final class VPNMonitor: VPNMonitorProtocol {
       task.standardOutput = pipe
       task.standardError = Pipe()
 
-      do {
-        try task.run()
-        task.waitUntilExit()
+      var hasResumed = false
+      let resumeLock = NSLock()
+
+      // Non-blocking: use terminationHandler instead of waitUntilExit
+      task.terminationHandler = { _ in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: data, encoding: .utf8)
         continuation.resume(returning: output)
+      }
+
+      do {
+        try task.run()
+
+        // Timeout after 5 seconds to prevent hangs
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: nil)
+        }
       } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
         continuation.resume(returning: nil)
       }
     }
@@ -171,23 +207,61 @@ final class VPNMonitor: VPNMonitorProtocol {
 // MARK: - Management Socket
 
 extension VPNMonitor {
-  func sendManagementCommand(_ command: String) -> Bool {
+  func sendManagementCommand(_ command: String) async -> Bool {
     guard fileManager.fileExists(atPath: managementSocketPath) else {
       return false
     }
 
-    let process = Process()
-    process.launchPath = "/bin/sh"
-    process.arguments = [
-      "-c", ShellCommands.managementCommand(command, socketPath: managementSocketPath),
-    ]
+    return await withCheckedContinuation { continuation in
+      let process = Process()
+      process.launchPath = "/bin/sh"
+      process.arguments = [
+        "-c", ShellCommands.managementCommand(command, socketPath: self.managementSocketPath),
+      ]
 
-    do {
-      try process.run()
-      process.waitUntilExit()
-      return process.terminationStatus == 0
-    } catch {
-      return false
+      var hasResumed = false
+      let resumeLock = NSLock()
+
+      process.terminationHandler = { proc in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+
+        continuation.resume(returning: proc.terminationStatus == 0)
+      }
+
+      do {
+        try process.run()
+
+        // Timeout after 5 seconds
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if process.isRunning {
+            process.terminate()
+          }
+          continuation.resume(returning: false)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        continuation.resume(returning: false)
+      }
     }
   }
 }

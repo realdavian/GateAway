@@ -17,6 +17,7 @@ final class OpenVPNController: VPNControlling {
   private let vpnMonitor: VPNMonitorProtocol
   private let keychainManager: KeychainManagerProtocol
   private let scriptRunner: ScriptRunnerProtocol
+  private let permissionService: PermissionServiceProtocol
 
   private let openVPNBinary: String
   private let configDirectory: String
@@ -53,11 +54,12 @@ final class OpenVPNController: VPNControlling {
 
   init(
     vpnMonitor: VPNMonitorProtocol, keychainManager: KeychainManagerProtocol,
-    scriptRunner: ScriptRunnerProtocol
+    scriptRunner: ScriptRunnerProtocol, permissionService: PermissionServiceProtocol
   ) {
     self.vpnMonitor = vpnMonitor
     self.keychainManager = keychainManager
     self.scriptRunner = scriptRunner
+    self.permissionService = permissionService
 
     // Check Homebrew paths for OpenVPN using centralized constants
     openVPNBinary =
@@ -91,14 +93,14 @@ final class OpenVPNController: VPNControlling {
     Log.info("Connecting to \(server.countryLong) (\(server.hostName))")
 
     // 0. Kill any existing openvpn process (ensures only 1 connection)
-    if getOpenVPNProcessCount() > 0 {
+    if await getOpenVPNProcessCount() > 0 {
       Log.warning("Killing existing process before new connection")
-      _ = sendManagementCommand("signal SIGTERM")
+      _ = await sendManagementCommand("signal SIGTERM")
       try await Task.sleep(nanoseconds: 500_000_000)
     }
 
     // 1. Pre-flight Permission Check
-    try PermissionService.shared.checkOpenVPNPermission()
+    try permissionService.checkOpenVPNPermission()
 
     // 2. Check if OpenVPN is installed
     guard isInstalled() else {
@@ -122,13 +124,13 @@ final class OpenVPNController: VPNControlling {
     let maxAttempts = Constants.Timeouts.connectionAttempts
 
     for attempt in 1...maxAttempts {
-      if isActuallyConnected() {
+      if await isActuallyConnected() {
         Log.success("Connection established after \(attempt) seconds")
         return
       }
 
       // Check failure (process crashed)
-      if !isOpenVPNRunning() {
+      if await !isOpenVPNRunning() {
         Log.error("Process terminated during connection")
         let errorMessage = extractErrorFromLog() ?? "Connection failed - check log"
         throw OpenVPNError.connectionFailed(errorMessage)
@@ -156,13 +158,13 @@ final class OpenVPNController: VPNControlling {
     return "Connection failed - check log"
   }
 
-  func cancelConnection() {
+  func cancelConnection() async {
     Log.info("Cancelling connection...")
 
     // Try management socket first
     if fileManager.fileExists(atPath: managementSocketPath) {
       Log.debug("Sending cancel via management socket...")
-      if sendManagementCommand("signal SIGTERM") {
+      if await sendManagementCommand("signal SIGTERM") {
         Log.success("Cancel signal sent via socket")
         return
       }
@@ -179,7 +181,7 @@ final class OpenVPNController: VPNControlling {
     // Try management socket first
     // Try management interface first (NO SUDO REQUIRED!)
     if fileManager.fileExists(atPath: managementSocketPath) {
-      if sendManagementCommand("signal SIGTERM") {
+      if await sendManagementCommand("signal SIGTERM") {
         Log.success("Graceful disconnect sent via management socket")
         try await Task.sleep(nanoseconds: 1_500_000_000)
       } else {
@@ -188,7 +190,7 @@ final class OpenVPNController: VPNControlling {
     }
 
     // Check if there are still processes running
-    let processCount = getOpenVPNProcessCount()
+    let processCount = await getOpenVPNProcessCount()
     if processCount > 0 {
       Log.warning("\(processCount) process(es) still running, using force kill...")
 
@@ -219,27 +221,65 @@ final class OpenVPNController: VPNControlling {
     Log.success("Disconnected successfully")
   }
 
-  private func getOpenVPNProcessCount() -> Int {
-    let task = Process()
-    task.launchPath = "/bin/sh"
-    task.arguments = ["-c", ShellCommands.checkProcessCount]
+  private func getOpenVPNProcessCount() async -> Int {
+    await withCheckedContinuation { continuation in
+      let task = Process()
+      task.launchPath = "/bin/sh"
+      task.arguments = ["-c", ShellCommands.checkProcessCount]
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
+      let pipe = Pipe()
+      task.standardOutput = pipe
 
-    do {
-      try task.run()
-      task.waitUntilExit()
+      var hasResumed = false
+      let resumeLock = NSLock()
 
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      if let output = String(data: data, encoding: .utf8) {
-        return Int(output.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+      task.terminationHandler = { _ in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        let result =
+          Int(
+            String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+              ?? "") ?? 0
+        continuation.resume(returning: result)
       }
-    } catch {
-      Log.warning("Failed to get process count: \(error)")
-    }
 
-    return 0
+      do {
+        try task.run()
+
+        // Timeout after 5 seconds
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: 0)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        Log.warning("Failed to get process count: \(error)")
+        continuation.resume(returning: 0)
+      }
+    }
   }
 
   // MARK: - Helpers
@@ -248,8 +288,8 @@ final class OpenVPNController: VPNControlling {
     return fileManager.fileExists(atPath: openVPNBinary)
   }
 
-  func getConnectionStatus() -> (isConnected: Bool, vpnIP: String?) {
-    guard let stateOutput = queryConnectionState() else {
+  func getConnectionStatus() async -> (isConnected: Bool, vpnIP: String?) {
+    guard let stateOutput = await queryConnectionState() else {
       return (false, nil)
     }
 
@@ -358,7 +398,7 @@ final class OpenVPNController: VPNControlling {
   // MARK: - Deprecated: Old auth methods removed - now using ScriptRunner
 
   private func verifyOpenVPNStarted() async throws {
-    if isOpenVPNRunning() {
+    if await isOpenVPNRunning() {
       Log.success("Process confirmed running")
 
       var socketWait = 0
@@ -387,33 +427,70 @@ final class OpenVPNController: VPNControlling {
 
   // MARK: - Process Management
 
-  private func isOpenVPNRunning() -> Bool {
-    let task = Process()
-    task.launchPath = "/bin/sh"
-    task.arguments = ["-c", ShellCommands.checkProcessCountAlt]
+  private func isOpenVPNRunning() async -> Bool {
+    await withCheckedContinuation { continuation in
+      let task = Process()
+      task.launchPath = "/bin/sh"
+      task.arguments = ["-c", ShellCommands.checkProcessCountAlt]
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
+      let pipe = Pipe()
+      task.standardOutput = pipe
 
-    do {
-      try task.run()
-      task.waitUntilExit()
+      var hasResumed = false
+      let resumeLock = NSLock()
 
-      let data = pipe.fileHandleForReading.readDataToEndOfFile()
-      if let output = String(data: data, encoding: .utf8),
-        let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines))
-      {
-        let isRunning = count > 0
-        if isRunning {
-          Log.debug("Process check: \(count) process(es) running")
+      task.terminationHandler = { _ in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
         }
-        return isRunning
-      }
-    } catch {
-      Log.warning("Failed to check process: \(error)")
-    }
+        hasResumed = true
+        resumeLock.unlock()
 
-    return false
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        var isRunning = false
+        if let output = String(data: data, encoding: .utf8),
+          let count = Int(output.trimmingCharacters(in: .whitespacesAndNewlines))
+        {
+          isRunning = count > 0
+          if isRunning {
+            Log.debug("Process check: \(count) process(es) running")
+          }
+        }
+        continuation.resume(returning: isRunning)
+      }
+
+      do {
+        try task.run()
+
+        // Timeout after 5 seconds
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: false)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        Log.warning("Failed to check process: \(error)")
+        continuation.resume(returning: false)
+      }
+    }
   }
 
   private func connectToManagementInterface() {
@@ -425,45 +502,81 @@ final class OpenVPNController: VPNControlling {
     Log.debug("Management interface available at \(managementSocketPath)")
   }
 
-  private func queryConnectionState() -> String? {
+  private func queryConnectionState() async -> String? {
     guard fileManager.fileExists(atPath: managementSocketPath) else {
       return nil
     }
 
-    let task = Process()
-    task.launchPath = "/bin/sh"
-    task.arguments = [
-      "-c",
-      ShellCommands.queryState(socketPath: managementSocketPath),
-    ]
+    return await withCheckedContinuation { continuation in
+      let task = Process()
+      task.launchPath = "/bin/sh"
+      task.arguments = [
+        "-c",
+        ShellCommands.queryState(socketPath: self.managementSocketPath),
+      ]
 
-    let pipe = Pipe()
-    task.standardOutput = pipe
-    task.standardError = Pipe()
+      let pipe = Pipe()
+      task.standardOutput = pipe
+      task.standardError = Pipe()
 
-    do {
-      try task.run()
-      task.waitUntilExit()
+      var hasResumed = false
+      let resumeLock = NSLock()
 
-      if task.terminationStatus == 0 {
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(
-          in: .whitespacesAndNewlines),
-          !output.isEmpty
-        {
-          // Output format: "1234567890,CONNECTED,SUCCESS,10.8.0.6,..."
-          return output
+      task.terminationHandler = { proc in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
         }
-      }
-    } catch {
-      Log.warning("Failed to query state: \(error)")
-    }
+        hasResumed = true
+        resumeLock.unlock()
 
-    return nil
+        var output: String?
+        if proc.terminationStatus == 0 {
+          let data = pipe.fileHandleForReading.readDataToEndOfFile()
+          if let result = String(data: data, encoding: .utf8)?.trimmingCharacters(
+            in: .whitespacesAndNewlines),
+            !result.isEmpty
+          {
+            output = result
+          }
+        }
+        continuation.resume(returning: output)
+      }
+
+      do {
+        try task.run()
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: nil)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        Log.warning("Failed to query state: \(error)")
+        continuation.resume(returning: nil)
+      }
+    }
   }
 
-  private func isActuallyConnected() -> Bool {
-    guard let stateOutput = queryConnectionState() else {
+  private func isActuallyConnected() async -> Bool {
+    guard let stateOutput = await queryConnectionState() else {
       return false
     }
 
@@ -488,40 +601,76 @@ final class OpenVPNController: VPNControlling {
     return false
   }
 
-  private func sendManagementCommand(_ command: String) -> Bool {
+  private func sendManagementCommand(_ command: String) async -> Bool {
     guard fileManager.fileExists(atPath: managementSocketPath) else {
       Log.warning("Management socket not found")
       return false
     }
 
-    let task = Process()
-    task.launchPath = "/usr/bin/nc"
-    task.arguments = ["-U", managementSocketPath]
+    return await withCheckedContinuation { continuation in
+      let task = Process()
+      task.launchPath = "/usr/bin/nc"
+      task.arguments = ["-U", self.managementSocketPath]
 
-    let inputPipe = Pipe()
-    task.standardInput = inputPipe
-    task.standardOutput = Pipe()
-    task.standardError = Pipe()
+      let inputPipe = Pipe()
+      task.standardInput = inputPipe
+      task.standardOutput = Pipe()
+      task.standardError = Pipe()
 
-    do {
-      try task.run()
+      var hasResumed = false
+      let resumeLock = NSLock()
 
-      let commandData = "\(command)\n".data(using: .utf8)!
-      inputPipe.fileHandleForWriting.write(commandData)
-      inputPipe.fileHandleForWriting.closeFile()
+      task.terminationHandler = { proc in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
 
-      task.waitUntilExit()
-
-      if task.terminationStatus == 0 {
-        Log.success("Sent '\(command)' via management socket")
-        return true
-      } else {
-        Log.warning("Failed to send command via socket")
-        return false
+        let success = proc.terminationStatus == 0
+        if success {
+          Log.success("Sent '\(command)' via management socket")
+        } else {
+          Log.warning("Failed to send command via socket")
+        }
+        continuation.resume(returning: success)
       }
-    } catch {
-      Log.warning("Socket communication error: \(error)")
-      return false
+
+      do {
+        try task.run()
+
+        if let commandData = "\(command)\n".data(using: .utf8) {
+          inputPipe.fileHandleForWriting.write(commandData)
+        }
+        inputPipe.fileHandleForWriting.closeFile()
+
+        DispatchQueue.global().asyncAfter(deadline: .now() + 5) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if task.isRunning {
+            task.terminate()
+          }
+          continuation.resume(returning: false)
+        }
+      } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
+        Log.warning("Socket communication error: \(error)")
+        continuation.resume(returning: false)
+      }
     }
   }
 }

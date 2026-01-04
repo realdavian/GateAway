@@ -31,10 +31,23 @@ struct VPNServer: Identifiable, Hashable, Codable {
   }
 }
 
+// MARK: - Network Session Protocol
+
+protocol NetworkSessionProtocol {
+  func data(for request: URLRequest) async throws -> (Data, URLResponse)
+}
+
+extension URLSession: NetworkSessionProtocol {}
+
 // MARK: - Implementation
 
 final class VPNGateAPI: VPNGateAPIProtocol {
-  private let endpoint = URL(string: "https://www.vpngate.net/api/iphone/")!
+  private let endpoint = URL(string: Constants.Paths.vpngate)!
+  private let session: NetworkSessionProtocol
+
+  init(session: NetworkSessionProtocol) {
+    self.session = session
+  }
 
   func fetchServers() async throws -> [VPNServer] {
     Log.info("Fetching from \(endpoint)")
@@ -43,7 +56,7 @@ final class VPNGateAPI: VPNGateAPIProtocol {
     request.cachePolicy = .reloadIgnoringLocalCacheData
     request.timeoutInterval = Constants.Timeouts.apiRequest
 
-    let (data, _) = try await URLSession.shared.data(for: request)
+    let (data, _) = try await session.data(for: request)
     Log.debug("Received \(data.count) bytes")
 
     guard let text = String(data: data, encoding: .utf8) else {

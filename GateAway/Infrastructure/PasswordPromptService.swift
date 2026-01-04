@@ -1,10 +1,17 @@
 import AppKit
 
+// MARK: - Protocol
+
+protocol PasswordPromptServiceProtocol {
+  @MainActor
+  func promptForPassword() async -> String?
+}
+
 // MARK: - Password Prompt Service
 
 /// Native macOS password prompt using NSAlert with SecureTextField
 /// Used by ScriptRunner when no password is cached or stored in Keychain
-final class PasswordPromptService {
+final class PasswordPromptService: PasswordPromptServiceProtocol {
 
   static let shared = PasswordPromptService()
 

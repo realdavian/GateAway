@@ -10,7 +10,7 @@ protocol VPNControlling {
   func disconnect() async throws
 
   /// Cancels an in-progress connection attempt without throwing
-  func cancelConnection()
+  func cancelConnection() async
 
   /// Human-readable name for this backend (e.g., "OpenVPN CLI")
   var backendName: String { get }

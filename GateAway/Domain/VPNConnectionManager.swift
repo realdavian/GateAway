@@ -137,7 +137,7 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
       onStateChange?(.disconnecting)
     }
 
-    controller.cancelConnection()
+    await controller.cancelConnection()
 
     await MainActor.run {
       monitoringStore.setDisconnected()

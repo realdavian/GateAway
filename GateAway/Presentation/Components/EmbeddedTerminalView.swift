@@ -115,25 +115,26 @@ struct EmbeddedTerminalView: View {
         }
       }
 
-      do {
-        try process.run()
-        process.waitUntilExit()
-
-        let code = process.terminationStatus
-        await MainActor.run {
-          self.exitCode = code
-          self.isRunning = false
-          if code == 0 {
-            self.output += "\n[Process completed successfully]\n"
-          } else {
-            self.output += "\n[Process exited with code \(code)]\n"
-          }
+      // Use async continuation with terminationHandler instead of waitUntilExit
+      let code: Int32 = await withCheckedContinuation { continuation in
+        process.terminationHandler = { proc in
+          continuation.resume(returning: proc.terminationStatus)
         }
-      } catch {
-        await MainActor.run {
-          self.output += "\n[Error: \(error.localizedDescription)]\n"
-          self.exitCode = -1
-          self.isRunning = false
+
+        do {
+          try process.run()
+        } catch {
+          continuation.resume(returning: -1)
+        }
+      }
+
+      await MainActor.run {
+        self.exitCode = code
+        self.isRunning = false
+        if code == 0 {
+          self.output += "\n[Process completed successfully]\n"
+        } else {
+          self.output += "\n[Process exited with code \(code)]\n"
         }
       }
     }

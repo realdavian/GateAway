@@ -16,7 +16,14 @@ enum PermissionError: LocalizedError {
   }
 }
 
-final class PermissionService {
+// MARK: - Protocol
+
+protocol PermissionServiceProtocol {
+  func checkOpenVPNPermission() throws
+  func requestPermission()
+}
+
+final class PermissionService: PermissionServiceProtocol {
   static let shared = PermissionService()
 
   private init() {}

@@ -61,6 +61,9 @@ enum Constants {
     static let logFile = "openvpn.log"
     static let managementSocket = "openvpn.sock"
     static let authFile = "auth.txt"
+
+    /// Endpoints
+    static let vpngate = "https://www.vpngate.net/api/iphone/"
   }
 
   // MARK: - VPN Credentials

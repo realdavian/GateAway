@@ -49,6 +49,7 @@ final class ScriptRunner: ScriptRunnerProtocol {
   // MARK: - Dependencies
 
   private let keychainManager: KeychainManagerProtocol
+  private let passwordPromptService: PasswordPromptServiceProtocol
 
   // MARK: - Cached Credentials
 
@@ -66,8 +67,11 @@ final class ScriptRunner: ScriptRunnerProtocol {
 
   // MARK: - Init
 
-  init(keychainManager: KeychainManagerProtocol) {
+  init(
+    keychainManager: KeychainManagerProtocol, passwordPromptService: PasswordPromptServiceProtocol
+  ) {
     self.keychainManager = keychainManager
+    self.passwordPromptService = passwordPromptService
   }
 
   // MARK: - Public API
@@ -106,21 +110,56 @@ final class ScriptRunner: ScriptRunnerProtocol {
       process.standardOutput = outputPipe
       process.standardError = errorPipe
 
-      do {
-        try process.run()
-        process.waitUntilExit()
+      var hasResumed = false
+      let resumeLock = NSLock()
+
+      process.terminationHandler = { proc in
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
 
         let outputData = outputPipe.fileHandleForReading.readDataToEndOfFile()
         let output = String(data: outputData, encoding: .utf8) ?? ""
 
-        if process.terminationStatus == 0 {
+        if proc.terminationStatus == 0 {
           continuation.resume(returning: output.trimmingCharacters(in: .whitespacesAndNewlines))
         } else {
           let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
           let errorOutput = String(data: errorData, encoding: .utf8) ?? "Unknown error"
           continuation.resume(throwing: ScriptRunnerError.commandFailed(errorOutput))
         }
+      }
+
+      do {
+        try process.run()
+
+        // Timeout after 30 seconds for non-privileged commands
+        DispatchQueue.global().asyncAfter(deadline: .now() + 30) {
+          resumeLock.lock()
+          guard !hasResumed else {
+            resumeLock.unlock()
+            return
+          }
+          hasResumed = true
+          resumeLock.unlock()
+
+          if process.isRunning {
+            process.terminate()
+          }
+          continuation.resume(throwing: ScriptRunnerError.commandFailed("Command timed out"))
+        }
       } catch {
+        resumeLock.lock()
+        guard !hasResumed else {
+          resumeLock.unlock()
+          return
+        }
+        hasResumed = true
+        resumeLock.unlock()
         continuation.resume(throwing: ScriptRunnerError.commandFailed(error.localizedDescription))
       }
     }
@@ -157,7 +196,7 @@ final class ScriptRunner: ScriptRunnerProtocol {
 
   private func runWithPasswordPrompt(_ command: String) async throws -> String {
     // Show native macOS password dialog
-    guard let password = await PasswordPromptService.shared.promptForPassword() else {
+    guard let password = await passwordPromptService.promptForPassword() else {
       Log.warning("ScriptRunner: User cancelled password prompt")
       throw ScriptRunnerError.authenticationFailed
     }
