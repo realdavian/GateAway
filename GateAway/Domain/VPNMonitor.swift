@@ -18,6 +18,10 @@ final class VPNMonitor: VPNMonitorProtocol {
   private var monitorTask: Task<Void, Never>?
   private var monitoringRefCount = 0
   private let statsSubject = CurrentValueSubject<VPNStats, Never>(.empty)
+  private var wasConnected = false
+
+  /// Callback invoked when connection drops unexpectedly
+  var onConnectionDropped: (() -> Void)?
 
   var statsPublisher: AnyPublisher<VPNStats, Never> {
     statsSubject.eraseToAnyPublisher()
@@ -76,6 +80,7 @@ final class VPNMonitor: VPNMonitorProtocol {
     monitorTask?.cancel()
     monitorTask = nil
     statsSubject.send(.empty)
+    wasConnected = false
     Log.debug("Force stopped")
   }
 
@@ -83,18 +88,57 @@ final class VPNMonitor: VPNMonitorProtocol {
 
   private func pollStats(previous: VPNStats) async -> VPNStats {
     guard fileManager.fileExists(atPath: managementSocketPath) else {
+      // Socket gone = connection dropped
+      if wasConnected {
+        wasConnected = false
+        Log.warning("VPN connection dropped (socket missing)")
+        onConnectionDropped?()
+      }
       return previous
     }
 
-    guard let status = await queryStatus() else {
+    // Query both status and state from management socket
+    async let statusResult = queryStatus()
+    async let stateResult = queryState()
+
+    guard let status = await statusResult else {
       return previous
     }
 
-    return parseStatus(status, previous: previous)
+    let state = await stateResult
+    let newStats = parseStatus(status, state: state, previous: previous)
+
+    // Track connection state for drop detection
+    let isNowConnected = newStats.isConnected
+    if wasConnected && !isNowConnected {
+      Log.warning("VPN connection dropped (state change)")
+      onConnectionDropped?()
+    }
+    wasConnected = isNowConnected
+
+    return newStats
   }
 
   private func queryStatus() async -> String? {
     return await sendCommand("status")
+  }
+
+  private func queryState() async -> String? {
+    // Query state via management socket - returns format: "timestamp,STATE,description"
+    guard let response = await sendCommand("state") else { return nil }
+
+    // Parse state from response (e.g., "1234567890,CONNECTED,SUCCESS")
+    let lines = response.components(separatedBy: "\n")
+    for line in lines {
+      let parts = line.components(separatedBy: ",")
+      if parts.count >= 2 {
+        let state = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        if ["CONNECTED", "CONNECTING", "RECONNECTING", "EXITING", "WAIT"].contains(state) {
+          return state
+        }
+      }
+    }
+    return nil
   }
 
   private func sendCommand(_ command: String) async -> String? {
@@ -158,7 +202,7 @@ final class VPNMonitor: VPNMonitorProtocol {
     }
   }
 
-  private func parseStatus(_ status: String, previous: VPNStats) -> VPNStats {
+  private func parseStatus(_ status: String, state: String?, previous: VPNStats) -> VPNStats {
     var bytesReceived: Int64 = 0
     var bytesSent: Int64 = 0
     var vpnIP: String? = previous.vpnIP
@@ -199,7 +243,8 @@ final class VPNMonitor: VPNMonitorProtocol {
       downloadSpeed: downloadSpeed,
       uploadSpeed: uploadSpeed,
       vpnIP: vpnIP,
-      connectedSince: connectedSince
+      connectedSince: connectedSince,
+      state: state
     )
   }
 }

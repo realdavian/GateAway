@@ -28,8 +28,11 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
   private let telemetry: TelemetryProtocol
   private let monitoringStore: MonitoringStore
   private let vpnMonitor: VPNMonitor
+  private let networkProtection: NetworkProtectionServiceProtocol
+  private let preferencesManager: PreferencesManagerProtocol
   private var connectionTask: Task<Void, Error>?
   private var currentServer: VPNServer?
+  private var isAutoReconnecting = false
 
   var currentState: ConnectionState {
     monitoringStore.connectionState
@@ -43,13 +46,58 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     backend: UserPreferences.VPNProvider = .openVPN,
     telemetry: TelemetryProtocol,
     monitoringStore: MonitoringStore,
-    vpnMonitor: VPNMonitor
+    vpnMonitor: VPNMonitor,
+    networkProtection: NetworkProtectionServiceProtocol,
+    preferencesManager: PreferencesManagerProtocol
   ) {
     self.controller = controller
     self.telemetry = telemetry
     self.monitoringStore = monitoringStore
     self.vpnMonitor = vpnMonitor
+    self.networkProtection = networkProtection
+    self.preferencesManager = preferencesManager
     Log.info("Initialized with \(backend.displayName) backend")
+
+    setupAutoReconnect()
+  }
+
+  // MARK: - Auto-Reconnect
+
+  private func setupAutoReconnect() {
+    vpnMonitor.onConnectionDropped = { [weak self] in
+      guard let self = self else { return }
+      Task {
+        await self.handleConnectionDrop()
+      }
+    }
+  }
+
+  private func handleConnectionDrop() async {
+    let preferences = preferencesManager.loadPreferences()
+
+    guard preferences.autoReconnectOnDrop,
+      let server = currentServer,
+      !isAutoReconnecting
+    else {
+      return
+    }
+
+    Log.info("Connection dropped, auto-reconnecting...")
+    isAutoReconnecting = true
+
+    await MainActor.run {
+      monitoringStore.setReconnecting()
+      onStateChange?(.reconnecting)
+    }
+
+    do {
+      // Kill switch remains active during reconnect
+      try await connect(to: server, enableRetry: true)
+      isAutoReconnecting = false
+    } catch {
+      Log.error("Auto-reconnect failed: \(error.localizedDescription)")
+      isAutoReconnecting = false
+    }
   }
 
   func connect(to server: VPNServer, enableRetry: Bool = true) async throws {
@@ -58,11 +106,24 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
     connectionTask?.cancel()
     currentServer = server
 
+    // Enable network protections before connecting
+    let preferences = preferencesManager.loadPreferences()
+    try await enableProtections(preferences: preferences)
+
     let task = Task {
       try await performConnection(to: server, enableRetry: enableRetry)
     }
     connectionTask = task
     try await task.value
+  }
+
+  private func enableProtections(preferences: UserPreferences) async throws {
+    if preferences.killSwitchEnabled {
+      try await networkProtection.enableKillSwitch()
+    }
+    if preferences.ipv6ProtectionEnabled {
+      try await networkProtection.disableIPv6()
+    }
   }
 
   private func performConnection(to server: VPNServer, enableRetry: Bool) async throws {
@@ -159,6 +220,11 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
 
     do {
       try await controller.disconnect()
+
+      // Disable network protections on user-initiated disconnect
+      try? await networkProtection.disableKillSwitch()
+      try? await networkProtection.restoreIPv6()
+
       Log.success("Disconnected successfully")
 
       await MainActor.run {

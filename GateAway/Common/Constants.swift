@@ -61,9 +61,48 @@ enum Constants {
     static let logFile = "openvpn.log"
     static let managementSocket = "openvpn.sock"
     static let authFile = "auth.txt"
+    static let killSwitchRulesFile = "killswitch.rules"
 
     /// Endpoints
     static let vpngate = "https://www.vpngate.net/api/iphone/"
+  }
+
+  // MARK: - Firewall Rules
+
+  enum FirewallRules {
+    /// PF rules template for Kill Switch - blocks all traffic except VPN
+    static func killSwitchRules(timestamp: Date = Date()) -> String {
+      """
+      # GateAway Kill Switch Rules
+      # Generated at: \(timestamp)
+      # Purpose: Block all traffic except VPN tunnel
+
+      # Block all traffic by default
+      block all
+
+      # Allow loopback (required for system)
+      pass on lo0 all
+
+      # Allow VPN tunnel interfaces (utun*)
+      pass on utun0 all
+      pass on utun1 all
+      pass on utun2 all
+      pass on utun3 all
+
+      # Allow OpenVPN to establish connection (UDP/TCP)
+      pass out proto udp to any port 1194
+      pass out proto tcp to any port 443
+      pass out proto tcp to any port 1194
+
+      # Allow DNS through VPN only (will be blocked if VPN down)
+      pass out on utun0 proto udp to any port 53
+      pass out on utun1 proto udp to any port 53
+
+      # Allow DHCP for local network
+      pass out proto udp from any port 68 to any port 67
+      pass in proto udp from any port 67 to any port 68
+      """
+    }
   }
 
   // MARK: - VPN Credentials

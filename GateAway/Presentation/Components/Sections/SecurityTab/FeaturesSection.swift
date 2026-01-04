@@ -4,11 +4,9 @@ import SwiftUI
 
 /// Security features section with toggles for auto-reconnect, DNS leak protection, kill switch
 struct SecurityTabFeaturesSection: View {
-  @AppStorage(Constants.StorageKeys.securityAutoReconnect) private var autoReconnect: Bool = true
-  @AppStorage(Constants.StorageKeys.securityDNSLeakProtection) private var dnsLeakProtection: Bool =
-    true
-  @State private var killSwitchEnabled: Bool = UserDefaults.standard.bool(
-    forKey: "enableKillSwitch")
+  @AppStorage(Constants.StorageKeys.autoReconnectOnDrop) private var autoReconnect: Bool = true
+  @AppStorage(Constants.StorageKeys.killSwitchEnabled) private var killSwitchEnabled: Bool = false
+  @State private var dnsLeakEnabled: Bool = true  // Always enabled by OpenVPN
 
   var body: some View {
     SettingsSection(
@@ -26,22 +24,34 @@ struct SecurityTabFeaturesSection: View {
 
         Divider()
 
-        // DNS Leak Protection
-        SecurityToggleRow(
-          title: "DNS Leak Protection",
-          description: "Route all DNS queries through VPN tunnel",
-          isOn: $dnsLeakProtection
-        )
+        // DNS Leak Protection (informational - always enabled by OpenVPN)
+        HStack {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("DNS Leak Protection")
+              .font(.subheadline)
+            Text("Enabled by OpenVPN configuration")
+              .font(.caption)
+              .foregroundColor(.secondary)
+          }
+
+          Spacer()
+
+          Text("Enabled")
+            .font(.caption)
+            .foregroundColor(.green)
+          Image(systemName: "checkmark.circle.fill")
+            .foregroundColor(.green)
+        }
 
         Divider()
 
         // Kill Switch
         SecurityToggleRow(
           title: "Kill Switch",
-          description: "Block internet if VPN disconnects",
+          description: "Block internet if VPN disconnects unexpectedly",
           isOn: $killSwitchEnabled,
           warningIcon: true,
-          warningText: "Kill switch will block all internet traffic when VPN is disconnected"
+          warningText: "Blocks ALL traffic when VPN drops. Traffic unblocked on normal disconnect."
         )
       }
     }

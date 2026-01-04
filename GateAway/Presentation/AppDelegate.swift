@@ -15,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let cacheManager = ServerCacheManager()
   private let telemetry = ConnectionTelemetry()
   private let vpnGateAPI: VPNGateAPIProtocol = VPNGateAPI(session: URLSession.shared)
+  private lazy var networkProtectionService: NetworkProtectionServiceProtocol =
+    NetworkProtectionService(
+      scriptRunner: scriptRunner
+    )
 
   // MARK: - Stores
 
@@ -117,7 +121,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       backend: preferences.vpnProvider,
       telemetry: telemetry,
       monitoringStore: monitoringStore,
-      vpnMonitor: vpnMonitor
+      vpnMonitor: vpnMonitor,
+      networkProtection: networkProtectionService,
+      preferencesManager: preferencesManager
     )
     self.connectionManager = connectionManager
 

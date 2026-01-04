@@ -7,6 +7,8 @@ struct UserPreferences {
   var reconnectScope: ReconnectScope
   var topKPerCountry: Int
   var vpnProvider: VPNProvider
+  var killSwitchEnabled: Bool
+  var ipv6ProtectionEnabled: Bool
 
   enum ReconnectScope: String {
     case sameCountry
@@ -23,7 +25,9 @@ struct UserPreferences {
     autoReconnectOnDrop: true,
     reconnectScope: .sameCountry,
     topKPerCountry: 5,
-    vpnProvider: .openVPN
+    vpnProvider: .openVPN,
+    killSwitchEnabled: false,
+    ipv6ProtectionEnabled: false
   )
 }
 
@@ -44,6 +48,8 @@ final class PreferencesManager: PreferencesManagerProtocol {
     static let reconnectScope = "prefs.reconnectScope"
     static let topKPerCountry = "prefs.topKPerCountry"
     static let vpnProvider = "prefs.vpnProvider"
+    static let killSwitchEnabled = "prefs.killSwitchEnabled"
+    static let ipv6ProtectionEnabled = "prefs.ipv6ProtectionEnabled"
   }
 
   init(defaults: UserDefaults = .standard) {
@@ -64,11 +70,20 @@ final class PreferencesManager: PreferencesManagerProtocol {
       defaults.string(forKey: Keys.vpnProvider) ?? UserPreferences.default.vpnProvider.rawValue
     let provider = UserPreferences.VPNProvider(rawValue: providerRaw) ?? .openVPN
 
+    let killSwitch =
+      defaults.object(forKey: Keys.killSwitchEnabled) as? Bool
+      ?? UserPreferences.default.killSwitchEnabled
+    let ipv6Protection =
+      defaults.object(forKey: Keys.ipv6ProtectionEnabled) as? Bool
+      ?? UserPreferences.default.ipv6ProtectionEnabled
+
     return UserPreferences(
       autoReconnectOnDrop: autoReconnect,
       reconnectScope: scope,
       topKPerCountry: max(1, min(20, topK)),
-      vpnProvider: provider
+      vpnProvider: provider,
+      killSwitchEnabled: killSwitch,
+      ipv6ProtectionEnabled: ipv6Protection
     )
   }
 
@@ -77,5 +92,7 @@ final class PreferencesManager: PreferencesManagerProtocol {
     defaults.set(preferences.reconnectScope.rawValue, forKey: Keys.reconnectScope)
     defaults.set(preferences.topKPerCountry, forKey: Keys.topKPerCountry)
     defaults.set(preferences.vpnProvider.rawValue, forKey: Keys.vpnProvider)
+    defaults.set(preferences.killSwitchEnabled, forKey: Keys.killSwitchEnabled)
+    defaults.set(preferences.ipv6ProtectionEnabled, forKey: Keys.ipv6ProtectionEnabled)
   }
 }

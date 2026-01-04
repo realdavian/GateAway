@@ -6,6 +6,7 @@ import SwiftUI
 struct SecurityTabAdvancedSection: View {
   @AppStorage(Constants.StorageKeys.serverCacheTTL) private var cacheTTL: Int = Constants.Limits
     .defaultCacheTTL
+  @AppStorage("prefs.ipv6ProtectionEnabled") private var ipv6Protection: Bool = false
 
   var body: some View {
     SettingsSection(
@@ -14,24 +15,17 @@ struct SecurityTabAdvancedSection: View {
       iconColor: .gray
     ) {
       VStack(alignment: .leading, spacing: 16) {
-        // IPv6 leak protection
-        HStack {
+        // IPv6 leak protection - now a working toggle
+        Toggle(isOn: $ipv6Protection) {
           VStack(alignment: .leading, spacing: 4) {
             Text("IPv6 Leak Protection")
               .font(.subheadline)
-            Text("Disable IPv6 to prevent leaks")
+            Text("Disable IPv6 to prevent identity leaks during VPN connection")
               .font(.caption)
               .foregroundColor(.secondary)
           }
-
-          Spacer()
-
-          Text("Enabled")
-            .font(.caption)
-            .foregroundColor(.green)
-          Image(systemName: "checkmark.circle.fill")
-            .foregroundColor(.green)
         }
+        .toggleStyle(.switch)
 
         Divider()
 

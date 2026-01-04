@@ -30,7 +30,8 @@ final class MonitoringStore: ObservableObject {
           downloadSpeed: newStats.downloadSpeed,
           uploadSpeed: newStats.uploadSpeed,
           vpnIP: newStats.vpnIP,
-          connectedSince: preservedConnectedSince
+          connectedSince: preservedConnectedSince,
+          state: newStats.state
         )
       }
       .store(in: &cancellables)
@@ -54,7 +55,8 @@ final class MonitoringStore: ObservableObject {
       downloadSpeed: stats.downloadSpeed,
       uploadSpeed: stats.uploadSpeed,
       vpnIP: stats.vpnIP,
-      connectedSince: Date()
+      connectedSince: Date(),
+      state: "CONNECTED"
     )
     Log.success("State: connected at \(Date())")
   }
