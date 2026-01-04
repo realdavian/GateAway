@@ -2,88 +2,41 @@ import SwiftUI
 
 // MARK: - Security Tab: Advanced Section
 
-/// Advanced settings section with protocol info, encryption, and cache settings
+/// Advanced settings section with cache settings
 struct SecurityTabAdvancedSection: View {
   @AppStorage(Constants.StorageKeys.serverCacheTTL) private var cacheTTL: Int = Constants.Limits
     .defaultCacheTTL
-  @AppStorage("prefs.ipv6ProtectionEnabled") private var ipv6Protection: Bool = false
 
   var body: some View {
     SettingsSection(
-      title: "Advanced",
-      icon: "gearshape.2.fill",
+      title: "Cache",
+      icon: "archivebox.fill",
       iconColor: .gray
     ) {
-      VStack(alignment: .leading, spacing: 16) {
-        // IPv6 leak protection - now a working toggle
-        Toggle(isOn: $ipv6Protection) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text("IPv6 Leak Protection")
-              .font(.subheadline)
-            Text("Disable IPv6 to prevent identity leaks during VPN connection")
-              .font(.caption)
-              .foregroundColor(.secondary)
-          }
-        }
-        .toggleStyle(.switch)
-
-        Divider()
-
-        // Protocol
-        HStack {
-          VStack(alignment: .leading, spacing: 4) {
-            Text("VPN Protocol")
-              .font(.subheadline)
-            Text("OpenVPN UDP (fastest)")
-              .font(.caption)
-              .foregroundColor(.secondary)
-          }
-
-          Spacer()
-        }
-
-        Divider()
-
-        // Encryption
-        HStack {
-          VStack(alignment: .leading, spacing: 4) {
-            Text("Encryption")
-              .font(.subheadline)
-            Text("AES-128-CBC with TLS 1.2+")
-              .font(.caption)
-              .foregroundColor(.secondary)
-          }
-
-          Spacer()
-        }
-
-        Divider()
-
+      VStack(alignment: .leading, spacing: 8) {
         // Server Cache TTL
-        VStack(alignment: .leading, spacing: 8) {
-          HStack {
-            Text("Server List Cache Duration")
-              .font(.subheadline)
-            Spacer()
-            Picker("Cache TTL", selection: $cacheTTL) {
-              Text("5 min").tag(5)
-              Text("15 min").tag(15)
-              Text("30 min").tag(30)
-              Text("1 hour").tag(60)
-              Text("2 hours").tag(120)
-              Text("24 hours").tag(1440)
-            }
-            .pickerStyle(.menu)
-            .frame(width: 180)
+        HStack {
+          Text("Server List Cache")
+            .font(.subheadline)
+          Spacer()
+          Picker("Cache TTL", selection: $cacheTTL) {
+            Text("5 min").tag(5)
+            Text("15 min").tag(15)
+            Text("30 min").tag(30)
+            Text("1 hour").tag(60)
+            Text("2 hours").tag(120)
+            Text("24 hours").tag(1440)
           }
-
-          Text("How long to keep the server list cached before refreshing from VPN Gate.")
-            .font(.caption)
-            .foregroundColor(.secondary)
-
-          // Cache status
-          CacheStatusView(cacheTTL: cacheTTL)
+          .pickerStyle(.menu)
+          .frame(width: 120)
         }
+
+        Text("How long to keep the server list cached before refreshing.")
+          .font(.caption)
+          .foregroundColor(.secondary)
+
+        // Cache status
+        CacheStatusView(cacheTTL: cacheTTL)
       }
     }
   }

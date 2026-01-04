@@ -8,7 +8,6 @@ struct OverviewTab: View {
       VStack(alignment: .leading, spacing: 24) {
         OverviewTabBackendSection()
         OverviewTabConnectionSection()
-        OverviewTabAboutSection()
       }
       .padding()
     }

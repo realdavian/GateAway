@@ -5,10 +5,11 @@ import SwiftUI
 struct SecurityTab: View {
   @Environment(\.keychainManager) private var keychainManager
 
-  @State private var showingPasswordSetup: Bool = false
-  @State private var setupPassword: String = ""
   @State private var showingTestResult: Bool = false
   @State private var testResultMessage: String = ""
+  @State private var biometricRefreshTrigger: Bool = false
+
+  private var passwordSetupController: PasswordSetupWindowController?
 
   var body: some View {
     ScrollView {
@@ -16,24 +17,21 @@ struct SecurityTab: View {
         SecurityTabCredentialsSection()
 
         SecurityTabBiometricSection(
-          showingPasswordSetup: $showingPasswordSetup,
           showingTestResult: $showingTestResult,
-          testResultMessage: $testResultMessage
+          testResultMessage: $testResultMessage,
+          refreshTrigger: $biometricRefreshTrigger,
+          onEnableTouchID: {
+            showPasswordSetupWindow()
+          }
         )
 
         SecurityTabFeaturesSection()
 
         SecurityTabAdvancedSection()
+
+        AboutSection()
       }
       .padding()
-    }
-    .sheet(isPresented: $showingPasswordSetup) {
-      PasswordSetupView(
-        password: $setupPassword,
-        onSave: {
-          savePasswordToKeychain()
-        }
-      )
     }
     .alert(isPresented: $showingTestResult) {
       Alert(
@@ -44,14 +42,14 @@ struct SecurityTab: View {
     }
   }
 
-  private func savePasswordToKeychain() {
-    do {
-      try keychainManager.savePassword(setupPassword)
-      setupPassword = ""  // Clear for security
-      Log.success("Password saved to Keychain")
-    } catch {
-      testResultMessage = "❌ Failed to save password: \(error.localizedDescription)"
-      showingTestResult = true
-    }
+  private func showPasswordSetupWindow() {
+    let controller = PasswordSetupWindowController(
+      keychainManager: keychainManager,
+      onSave: { _ in
+        // Refresh biometric status after save
+        biometricRefreshTrigger.toggle()
+      }
+    )
+    controller.showWindow()
   }
 }

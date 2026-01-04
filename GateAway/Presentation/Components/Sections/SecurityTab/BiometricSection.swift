@@ -7,9 +7,11 @@ struct SecurityTabBiometricSection: View {
   @Environment(\.keychainManager) private var keychainManager
 
   @State private var isPasswordStored: Bool = false
-  @Binding var showingPasswordSetup: Bool
   @Binding var showingTestResult: Bool
   @Binding var testResultMessage: String
+  @Binding var refreshTrigger: Bool
+
+  let onEnableTouchID: () -> Void
 
   var body: some View {
     SettingsSection(
@@ -63,7 +65,7 @@ struct SecurityTabBiometricSection: View {
 
           if !isPasswordStored {
             Button("Enable Touch ID...") {
-              showingPasswordSetup = true
+              onEnableTouchID()
             }
           } else {
             Button("Test Touch ID...") {
@@ -78,8 +80,15 @@ struct SecurityTabBiometricSection: View {
       }
     }
     .onAppear {
-      isPasswordStored = keychainManager.isPasswordStored()
+      refreshPasswordStatus()
     }
+    .onChange(of: refreshTrigger) { _ in
+      refreshPasswordStatus()
+    }
+  }
+
+  private func refreshPasswordStatus() {
+    isPasswordStored = keychainManager.isPasswordStored()
   }
 
   private func testTouchID() {
@@ -108,10 +117,5 @@ struct SecurityTabBiometricSection: View {
       testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
       showingTestResult = true
     }
-  }
-
-  /// Call this after password is saved to refresh state
-  func refreshPasswordStatus() {
-    isPasswordStored = keychainManager.isPasswordStored()
   }
 }
