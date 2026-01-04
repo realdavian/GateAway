@@ -8,8 +8,9 @@ struct VPNStats: Equatable {
   let downloadSpeed: Double  // bytes per second
   let uploadSpeed: Double  // bytes per second
   let vpnIP: String?
+  let remoteIP: String?  // Server IP from management socket
   let connectedSince: Date?
-  let state: String?  // e.g., "CONNECTED", "RECONNECTING", etc.
+  let openVPNState: OpenVPNState?  // Typed state from management socket
 
   static let empty = VPNStats(
     bytesReceived: 0,
@@ -17,13 +18,19 @@ struct VPNStats: Equatable {
     downloadSpeed: 0,
     uploadSpeed: 0,
     vpnIP: nil,
+    remoteIP: nil,
     connectedSince: nil,
-    state: nil
+    openVPNState: nil
   )
 
-  /// Returns true if the VPN is in CONNECTED state (from management socket)
+  /// Returns true if the VPN is in CONNECTED state
   var isConnected: Bool {
-    state == "CONNECTED"
+    openVPNState == .connected
+  }
+
+  /// Detailed status text for UI (e.g., "Authenticating...")
+  var detailedStatus: String {
+    openVPNState?.displayText ?? "Disconnected"
   }
 }
 

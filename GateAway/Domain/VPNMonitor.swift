@@ -9,12 +9,24 @@ protocol VPNMonitorProtocol {
   var statsPublisher: AnyPublisher<VPNStats, Never> { get }
 }
 
+// MARK: - State Query Result
+
+/// Result from querying OpenVPN management socket state
+struct StateQueryResult {
+  let state: OpenVPNState?
+  let vpnIP: String?
+  let remoteIP: String?
+
+  static let empty = StateQueryResult(state: nil, vpnIP: nil, remoteIP: nil)
+}
+
 // MARK: - Implementation
 
 final class VPNMonitor: VPNMonitorProtocol {
 
   private let managementSocketPath: String
   private let fileManager = FileManager.default
+  private let networkProtectionService: NetworkProtectionServiceProtocol
   private var monitorTask: Task<Void, Never>?
   private var monitoringRefCount = 0
   private let statsSubject = CurrentValueSubject<VPNStats, Never>(.empty)
@@ -27,7 +39,8 @@ final class VPNMonitor: VPNMonitorProtocol {
     statsSubject.eraseToAnyPublisher()
   }
 
-  init() {
+  init(networkProtectionService: NetworkProtectionServiceProtocol) {
+    self.networkProtectionService = networkProtectionService
     let homeDir = fileManager.homeDirectoryForCurrentUser
     let configDir = homeDir.appendingPathComponent(Constants.Paths.configDirectory)
     self.managementSocketPath =
@@ -87,8 +100,8 @@ final class VPNMonitor: VPNMonitorProtocol {
   // MARK: - Stats Polling
 
   private func pollStats(previous: VPNStats) async -> VPNStats {
+    // Check 1: Socket file exists (process alive)
     guard fileManager.fileExists(atPath: managementSocketPath) else {
-      // Socket gone = connection dropped
       if wasConnected {
         wasConnected = false
         Log.warning("VPN connection dropped (socket missing)")
@@ -97,25 +110,47 @@ final class VPNMonitor: VPNMonitorProtocol {
       return previous
     }
 
-    // Query both status and state from management socket
+    // Query status and state from management socket
     async let statusResult = queryStatus()
-    async let stateResult = queryState()
+    async let stateResultAsync = queryState()
 
     guard let status = await statusResult else {
       return previous
     }
 
-    let state = await stateResult
-    let newStats = parseStatus(status, state: state, previous: previous)
+    let stateResult = await stateResultAsync
+    let newStats = parseStatus(
+      status,
+      openVPNState: stateResult.state,
+      stateVpnIP: stateResult.vpnIP,
+      remoteIP: stateResult.remoteIP,
+      previous: previous
+    )
 
-    // Track connection state for drop detection
+    // Check 2: State explicitly changed to non-connected state
+    // Only trigger if we get a definitive state (not nil from failed query)
     let isNowConnected = newStats.isConnected
-    if wasConnected && !isNowConnected {
-      Log.warning("VPN connection dropped (state change)")
+    if wasConnected,
+      let state = stateResult.state,
+      !state.isConnected && !state.isConnecting
+    {
+      // Explicit state change to RECONNECTING, EXITING, or other non-connected state
+      Log.warning("VPN connection dropped (state: \(state.rawValue))")
       onConnectionDropped?()
     }
-    wasConnected = isNowConnected
 
+    // Check 3: Tunnel interface exists (only if state says connected)
+    if isNowConnected && !networkProtectionService.isTunnelInterfaceActive() {
+      Log.warning("VPN connection dropped (tunnel interface missing)")
+      wasConnected = false
+      onConnectionDropped?()
+      return previous
+    }
+
+    // Only update wasConnected if we got a valid state
+    if stateResult.state != nil {
+      wasConnected = isNowConnected
+    }
     return newStats
   }
 
@@ -123,22 +158,36 @@ final class VPNMonitor: VPNMonitorProtocol {
     return await sendCommand("status")
   }
 
-  private func queryState() async -> String? {
-    // Query state via management socket - returns format: "timestamp,STATE,description"
-    guard let response = await sendCommand("state") else { return nil }
+  private func queryState() async -> StateQueryResult {
+    // Query state via management socket - returns format:
+    // timestamp,STATE,description,local_ip,remote_ip
+    guard let response = await sendCommand("state") else {
+      return .empty
+    }
 
-    // Parse state from response (e.g., "1234567890,CONNECTED,SUCCESS")
+    // Parse state from response (e.g., "1234567890,CONNECTED,SUCCESS,10.8.0.6,198.51.100.1")
     let lines = response.components(separatedBy: "\n")
-    for line in lines {
+    for line in lines where !line.hasPrefix(">") && !line.hasPrefix("END") && !line.isEmpty {
       let parts = line.components(separatedBy: ",")
       if parts.count >= 2 {
-        let state = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
-        if ["CONNECTED", "CONNECTING", "RECONNECTING", "EXITING", "WAIT"].contains(state) {
-          return state
-        }
+        let stateString = parts[1].trimmingCharacters(in: .whitespacesAndNewlines)
+        let state = OpenVPNState(rawValue: stateString)
+        let vpnIP =
+          parts.count >= 4 ? parts[3].trimmingCharacters(in: .whitespacesAndNewlines) : nil
+        let remoteIP =
+          parts.count >= 5 ? parts[4].trimmingCharacters(in: .whitespacesAndNewlines) : nil
+
+        // Log state transitions
+        Log.debug("OpenVPN state: \(state.rawValue)")
+
+        return StateQueryResult(
+          state: state,
+          vpnIP: vpnIP.flatMap { $0.isEmpty ? nil : $0 },
+          remoteIP: remoteIP.flatMap { $0.isEmpty ? nil : $0 }
+        )
       }
     }
-    return nil
+    return .empty
   }
 
   private func sendCommand(_ command: String) async -> String? {
@@ -202,10 +251,16 @@ final class VPNMonitor: VPNMonitorProtocol {
     }
   }
 
-  private func parseStatus(_ status: String, state: String?, previous: VPNStats) -> VPNStats {
+  private func parseStatus(
+    _ status: String,
+    openVPNState: OpenVPNState?,
+    stateVpnIP: String?,
+    remoteIP: String?,
+    previous: VPNStats
+  ) -> VPNStats {
     var bytesReceived: Int64 = 0
     var bytesSent: Int64 = 0
-    var vpnIP: String? = previous.vpnIP
+    var vpnIP: String? = stateVpnIP ?? previous.vpnIP
     var connectedSince: Date? = previous.connectedSince
 
     let lines = status.components(separatedBy: "\n")
@@ -243,9 +298,22 @@ final class VPNMonitor: VPNMonitorProtocol {
       downloadSpeed: downloadSpeed,
       uploadSpeed: uploadSpeed,
       vpnIP: vpnIP,
+      remoteIP: remoteIP ?? previous.remoteIP,
       connectedSince: connectedSince,
-      state: state
+      openVPNState: openVPNState
     )
+  }
+
+  /// Enable state notifications from OpenVPN
+  func enableStateNotifications() async {
+    _ = await sendCommand("state on")
+    Log.debug("State notifications enabled")
+  }
+
+  /// Disable state notifications
+  func disableStateNotifications() async {
+    _ = await sendCommand("state off")
+    Log.debug("State notifications disabled")
   }
 }
 

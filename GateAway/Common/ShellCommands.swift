@@ -72,4 +72,15 @@ enum ShellCommands {
   /// Re-enable IPv6 on common interfaces
   static let enableIPv6 =
     "networksetup -setv6automatic Wi-Fi; networksetup -setv6automatic Ethernet"
+
+  // MARK: - Network Interface Detection
+
+  /// Check if any utun interface exists with an IP (VPN tunnel active)
+  /// Returns IP if found, empty if not
+  static let checkTunnelInterface = """
+    for iface in utun0 utun1 utun2 utun3; do
+      ip=$(ifconfig $iface 2>/dev/null | grep 'inet ' | awk '{print $2}')
+      if [ -n "$ip" ]; then echo "$ip"; exit 0; fi
+    done
+    """
 }

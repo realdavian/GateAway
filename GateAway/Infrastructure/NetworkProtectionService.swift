@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Protocol
 
-/// Service for managing network protection features (Kill Switch, IPv6)
+/// Service for managing network protection features (Kill Switch, IPv6, Interface Detection)
 protocol NetworkProtectionServiceProtocol {
   /// Enable the Kill Switch firewall rules
   func enableKillSwitch() async throws
@@ -18,6 +18,10 @@ protocol NetworkProtectionServiceProtocol {
 
   /// Restore IPv6 on all network interfaces
   func restoreIPv6() async throws
+
+  /// Check if VPN tunnel interface (utun) exists with an IP
+  /// This is ground truth verification at OS level
+  func isTunnelInterfaceActive() -> Bool
 }
 
 // MARK: - Implementation
@@ -96,6 +100,37 @@ final class NetworkProtectionService: NetworkProtectionServiceProtocol {
     Log.info("Restoring IPv6...")
     _ = try await scriptRunner.run(ShellCommands.enableIPv6, privileged: true)
     Log.success("IPv6 restored")
+  }
+
+  // MARK: - Tunnel Interface Detection
+
+  /// Check if VPN tunnel interface (utun) exists with an IP
+  /// Uses native Swift getifaddrs API - no shell process needed
+  func isTunnelInterfaceActive() -> Bool {
+    var ifaddr: UnsafeMutablePointer<ifaddrs>?
+
+    guard getifaddrs(&ifaddr) == 0 else {
+      Log.error("Failed to get network interfaces")
+      return false
+    }
+    defer { freeifaddrs(ifaddr) }
+
+    var ptr = ifaddr
+    while let current = ptr {
+      let name = String(cString: current.pointee.ifa_name)
+
+      // Check for tunnel interface (utun0, utun1, etc.) with IPv4 address
+      if name.hasPrefix("utun"),
+        let addr = current.pointee.ifa_addr,
+        addr.pointee.sa_family == UInt8(AF_INET)
+      {
+        Log.debug("Found active tunnel interface: \(name)")
+        return true
+      }
+      ptr = current.pointee.ifa_next
+    }
+
+    return false
   }
 
   // MARK: - Private

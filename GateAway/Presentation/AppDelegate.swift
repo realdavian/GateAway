@@ -24,7 +24,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private let monitoringStore = MonitoringStore()
   private lazy var serverStore = ServerStore(api: vpnGateAPI, cache: cacheManager)
-  private lazy var vpnMonitor = VPNMonitor()
+  private lazy var vpnMonitor = VPNMonitor(networkProtectionService: networkProtectionService)
 
   // MARK: - UI Components
 
