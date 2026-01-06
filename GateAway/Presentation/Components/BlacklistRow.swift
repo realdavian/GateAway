@@ -75,7 +75,7 @@ struct BlacklistRow: View {
           VStack(alignment: .leading, spacing: 8) {
             // IP Address
             HStack(spacing: 8) {
-              Text("IP:")
+              Text("IP:".localized)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 50, alignment: .leading)
@@ -86,7 +86,7 @@ struct BlacklistRow: View {
 
             // Reason
             HStack(alignment: .top, spacing: 8) {
-              Text("Reason:")
+              Text("Reason:".localized)
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 50, alignment: .leading)
@@ -105,7 +105,7 @@ struct BlacklistRow: View {
             Button(action: onRemove) {
               HStack(spacing: 4) {
                 Image(systemName: "trash")
-                Text("Remove from Blacklist")
+                Text("Remove from Blacklist".localized)
               }
               .font(.caption)
               .foregroundColor(.white)

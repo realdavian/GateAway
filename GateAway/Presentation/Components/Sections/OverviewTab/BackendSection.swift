@@ -13,7 +13,7 @@ struct OverviewTabBackendSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "VPN Backend",
+      title: "VPN Backend".localized,
       icon: "terminal.fill",
       iconColor: .green
     ) {
@@ -34,15 +34,15 @@ struct OverviewTabBackendSection: View {
           }
 
           VStack(alignment: .leading, spacing: 4) {
-            Text("OpenVPN CLI")
+            Text("OpenVPN CLI".localized)
               .font(.system(size: 15, weight: .semibold))
 
             if isOpenVPNInstalled {
-              Text("Installed • Version \(openVPNVersion)")
+              Text("Installed • Version %@".localized(with: openVPNVersion))
                 .font(.caption)
                 .foregroundColor(.secondary)
             } else {
-              Text("Not Installed")
+              Text("Not Installed".localized)
                 .font(.caption)
                 .foregroundColor(.orange)
             }
@@ -51,7 +51,7 @@ struct OverviewTabBackendSection: View {
           Spacer()
 
           if !isOpenVPNInstalled && !showingInstaller {
-            Button("Install") {
+            Button("Install".localized) {
               startInstallation()
             }
             .padding(.horizontal, 16)
@@ -69,7 +69,7 @@ struct OverviewTabBackendSection: View {
             Image(systemName: "info.circle.fill")
               .foregroundColor(.blue)
 
-            Text("Requires Homebrew package manager")
+            Text("Requires Homebrew package manager".localized)
               .font(.caption)
               .foregroundColor(.secondary)
           }
@@ -97,11 +97,11 @@ struct OverviewTabBackendSection: View {
     }
     .alert(isPresented: $showingHomebrewConfirm) {
       Alert(
-        title: Text("Install Homebrew?"),
+        title: Text("Install Homebrew?".localized),
         message: Text(
           "OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?"
-        ),
-        primaryButton: .default(Text("Install Both")) {
+            .localized),
+        primaryButton: .default(Text("Install Both".localized)) {
           installCommand = """
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \\
             eval "$(/opt/homebrew/bin/brew shellenv)" && \\

@@ -20,12 +20,12 @@ struct SecurityTabAdvancedSection: View {
             .font(.subheadline)
           Spacer()
           Picker("Cache TTL".localized, selection: $cacheTTL) {
-            Text("5 min").tag(5)
-            Text("15 min").tag(15)
-            Text("30 min").tag(30)
-            Text("1 hour").tag(60)
-            Text("2 hours").tag(120)
-            Text("24 hours").tag(1440)
+            Text("5 min".localized).tag(5)
+            Text("15 min".localized).tag(15)
+            Text("30 min".localized).tag(30)
+            Text("1 hour".localized).tag(60)
+            Text("2 hours".localized).tag(120)
+            Text("24 hours".localized).tag(1440)
           }
           .pickerStyle(.menu)
           .frame(width: 120)
@@ -59,11 +59,11 @@ private struct CacheStatusView: View {
           .font(.caption)
 
         if isExpired {
-          Text("Cache expired (\(ageMinutes) min ago)")
+          Text("Cache expired %d min ago".localized(with: ageMinutes))
             .font(.caption)
             .foregroundColor(.orange)
         } else {
-          Text("Last updated \(ageMinutes) min ago")
+          Text("Last updated %d min ago".localized(with: ageMinutes))
             .font(.caption)
             .foregroundColor(.secondary)
         }

@@ -16,7 +16,7 @@ struct BlacklistTab: View {
       // Header with stats and actions
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("\(blacklist.count) Blacklisted Servers")
+          Text("%d Blacklisted Servers".localized(with: blacklist.count))
             .font(.headline)
 
           if blacklist.contains(where: { !$0.isExpired }) {

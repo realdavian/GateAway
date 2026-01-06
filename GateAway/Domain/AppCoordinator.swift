@@ -133,31 +133,17 @@ final class AppCoordinator: AppCoordinatorProtocol {
     let servers = serverStore.servers
     let lastRefresh = serverStore.lastRefresh
 
-    let title: String
-    switch state {
-    case .disconnected:
-      title = "Disconnected"
-    case .connecting:
-      title = "Connecting..."
-    case .connected:
-      title = "Connected"
-    case .disconnecting:
-      title = "Disconnecting..."
-    case .reconnecting:
-      title = "Reconnecting..."
-    case .error(let message):
-      title = "Error: \(message)"
-    }
+    let title = state.displayName
 
     var subtitleParts: [String] = []
     if !servers.isEmpty {
-      subtitleParts.append("Servers: \(servers.count)")
+      subtitleParts.append("Servers: %d".localized(with: servers.count))
     }
     if let lastRefresh {
       let formatter = DateFormatter()
       formatter.dateStyle = .none
       formatter.timeStyle = .short
-      subtitleParts.append("Updated: \(formatter.string(from: lastRefresh))")
+      subtitleParts.append("Updated: %@".localized(with: formatter.string(from: lastRefresh)))
     }
 
     let subtitle = subtitleParts.isEmpty ? nil : subtitleParts.joined(separator: " • ")

@@ -30,7 +30,7 @@ struct VPNStats: Equatable {
 
   /// Detailed status text for UI (e.g., "Authenticating...")
   var detailedStatus: String {
-    openVPNState?.displayText ?? "Disconnected"
+    openVPNState?.displayText ?? "Disconnected".localized
   }
 }
 

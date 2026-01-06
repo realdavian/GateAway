@@ -24,7 +24,7 @@ struct OverviewTabConnectionSection: View {
 
   var body: some View {
     SettingsSection(
-      title: "Connection Status",
+      title: "Connection Status".localized,
       icon: "network",
       iconColor: .blue
     ) {
@@ -48,11 +48,11 @@ struct OverviewTabConnectionSection: View {
                     .font(.subheadline)
                 }
               } else if case .connecting = connectionState {
-                Text("Establishing tunnel...")
+                Text("Establishing tunnel...".localized)
                   .font(.caption)
                   .foregroundColor(.secondary)
               } else if case .reconnecting = connectionState {
-                Text("Reconnecting...")
+                Text("Reconnecting...".localized)
                   .font(.caption)
                   .foregroundColor(.secondary)
               }
@@ -65,7 +65,7 @@ struct OverviewTabConnectionSection: View {
                 Text(formattedDuration)
                   .font(.system(.body, design: .monospaced))
                   .foregroundColor(.green)
-                Text("Connected")
+                Text("Connected".localized)
                   .font(.caption2)
                   .foregroundColor(.secondary)
               }
@@ -137,12 +137,12 @@ private struct ConnectionStatisticsView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Connection Statistics")
+      Text("Connection Statistics".localized)
         .font(.headline)
 
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Success Rate")
+          Text("Success Rate".localized)
             .font(.caption)
             .foregroundColor(.secondary)
           Text("\(Int(Double(telemetry.successCount) / Double(telemetry.totalAttempts) * 100))%")
@@ -154,7 +154,7 @@ private struct ConnectionStatisticsView: View {
         Spacer()
 
         VStack(alignment: .trailing, spacing: 4) {
-          Text("Avg Connection Time")
+          Text("Avg Connection Time".localized)
             .font(.caption)
             .foregroundColor(.secondary)
           Text(ConnectionTelemetry.formatTime(telemetry.avgConnectionTime))
@@ -165,11 +165,11 @@ private struct ConnectionStatisticsView: View {
       }
 
       HStack {
-        Text("Total Attempts: \(telemetry.totalAttempts)")
+        Text("Total Attempts: %d".localized(with: telemetry.totalAttempts))
           .font(.caption)
           .foregroundColor(.secondary)
         Spacer()
-        Text("\(telemetry.successCount) successful")
+        Text("%d successful".localized(with: telemetry.successCount))
           .font(.caption)
           .foregroundColor(.green)
       }
@@ -189,7 +189,7 @@ private struct QuickStatsView: View {
     HStack(spacing: 16) {
       StatItem(
         icon: "arrow.down.circle.fill",
-        label: "Download",
+        label: "Download".localized,
         value: stats.formattedBytesReceived
       )
 
@@ -198,7 +198,7 @@ private struct QuickStatsView: View {
 
       StatItem(
         icon: "arrow.up.circle.fill",
-        label: "Upload",
+        label: "Upload".localized,
         value: stats.formattedBytesSent
       )
 
@@ -207,7 +207,7 @@ private struct QuickStatsView: View {
 
       StatItem(
         icon: "speedometer",
-        label: "Speed",
+        label: "Speed".localized,
         value: stats.formattedDownloadSpeed
       )
     }

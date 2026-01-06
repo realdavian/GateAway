@@ -15,7 +15,7 @@ struct PasswordSetupView: View {
     VStack(spacing: 0) {
       // Header
       HStack {
-        Text("Enable Touch ID for VPN")
+        Text("Enable Touch ID for VPN".localized)
           .font(.headline)
         Spacer()
       }
@@ -33,7 +33,7 @@ struct PasswordSetupView: View {
             .font(.title2)
 
           VStack(alignment: .leading, spacing: 6) {
-            Text("Your admin password will be securely stored")
+            Text("Your admin password will be securely stored".localized)
               .font(.subheadline)
               .fontWeight(.medium)
 
@@ -51,7 +51,7 @@ struct PasswordSetupView: View {
 
         // Password field
         VStack(alignment: .leading, spacing: 8) {
-          Text("Admin Password")
+          Text("Admin Password".localized)
             .font(.subheadline)
             .fontWeight(.medium)
 
@@ -78,7 +78,7 @@ struct PasswordSetupView: View {
           )
           .cornerRadius(6)
 
-          Text("The password you use for 'sudo' commands")
+          Text("The password you use for 'sudo' commands".localized)
             .font(.caption2)
             .foregroundColor(.secondary)
         }
@@ -91,14 +91,14 @@ struct PasswordSetupView: View {
 
       // Footer buttons
       HStack(spacing: 12) {
-        Button("Cancel") {
+        Button("Cancel".localized) {
           presentationMode.wrappedValue.dismiss()
         }
         .keyboardShortcut(.cancelAction)
 
         Spacer()
 
-        Button("Enable Touch ID") {
+        Button("Enable Touch ID".localized) {
           onSave()
           presentationMode.wrappedValue.dismiss()
         }

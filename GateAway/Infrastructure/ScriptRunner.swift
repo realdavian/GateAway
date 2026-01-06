@@ -11,13 +11,13 @@ enum ScriptRunnerError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .commandFailed(let message):
-      return "Command failed: \(message)"
+      return "Command failed: %@".localized(with: message)
     case .authenticationRequired:
-      return "Authentication required for privileged operation"
+      return "Authentication required for privileged operation".localized
     case .authenticationFailed:
-      return "Authentication failed"
+      return "Authentication failed".localized
     case .invalidPassword:
-      return "Invalid password format"
+      return "Invalid password format".localized
     }
   }
 }

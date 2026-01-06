@@ -96,12 +96,13 @@ struct SecurityTabBiometricSection: View {
       do {
         let _ = try await keychainManager.getPassword()
         await MainActor.run {
-          testResultMessage = "✅ \(KeychainManager.biometricType()) authentication successful!"
+          testResultMessage = "%@ authentication successful!".localized(
+            with: KeychainManager.biometricType())
           showingTestResult = true
         }
       } catch {
         await MainActor.run {
-          testResultMessage = "❌ Failed: \(error.localizedDescription)"
+          testResultMessage = "Failed: %@".localized(with: error.localizedDescription)
           showingTestResult = true
         }
       }
@@ -114,7 +115,8 @@ struct SecurityTabBiometricSection: View {
       isPasswordStored = false
       Log.success("Password removed from Keychain")
     } catch {
-      testResultMessage = "❌ Failed to remove password: \(error.localizedDescription)"
+      testResultMessage = "Failed to remove password: %@".localized(
+        with: error.localizedDescription)
       showingTestResult = true
     }
   }

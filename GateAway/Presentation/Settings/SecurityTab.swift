@@ -35,9 +35,9 @@ struct SecurityTab: View {
     }
     .alert(isPresented: $showingTestResult) {
       Alert(
-        title: Text(testResultMessage.contains("✅") ? "Success" : "Failed"),
+        title: Text("Touch ID Test Result".localized),
         message: Text(testResultMessage),
-        dismissButton: .default(Text("OK"))
+        dismissButton: .default(Text("OK".localized))
       )
     }
   }

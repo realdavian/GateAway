@@ -211,7 +211,7 @@ final class StatusBarController: NSObject {
 
       let topServers = coordinator.getTopServers(forCountry: country)
       if topServers.isEmpty {
-        let empty = NSMenuItem(title: "No servers", action: nil, keyEquivalent: "")
+        let empty = NSMenuItem(title: "No servers".localized, action: nil, keyEquivalent: "")
         empty.isEnabled = false
         serversMenu.addItem(empty)
       } else {
@@ -260,7 +260,7 @@ final class StatusBarController: NSObject {
         }
       } catch {
         await MainActor.run { [weak self] in
-          self?.showError(title: "Refresh Failed", message: error.localizedDescription)
+          self?.showError(title: "Refresh Failed".localized, message: error.localizedDescription)
           self?.rebuildMenu()
         }
       }
@@ -279,7 +279,7 @@ final class StatusBarController: NSObject {
         }
       } catch {
         await MainActor.run { [weak self] in
-          self?.showError(title: "Connection Failed", message: error.localizedDescription)
+          self?.showError(title: "Connection Failed".localized, message: error.localizedDescription)
           self?.rebuildMenu()
         }
       }
@@ -302,7 +302,7 @@ final class StatusBarController: NSObject {
         }
       } catch {
         await MainActor.run { [weak self] in
-          self?.showError(title: "Connection Failed", message: error.localizedDescription)
+          self?.showError(title: "Connection Failed".localized, message: error.localizedDescription)
           self?.rebuildMenu()
         }
       }
@@ -321,7 +321,8 @@ final class StatusBarController: NSObject {
         }
       } catch {
         await MainActor.run { [weak self] in
-          self?.showError(title: "Disconnection Failed", message: error.localizedDescription)
+          self?.showError(
+            title: "Disconnection Failed".localized, message: error.localizedDescription)
           self?.rebuildMenu()
         }
       }
@@ -363,7 +364,7 @@ final class StatusBarController: NSObject {
     alert.messageText = title
     alert.informativeText = message
     alert.alertStyle = .warning
-    alert.addButton(withTitle: "OK")
+    alert.addButton(withTitle: "OK".localized)
     alert.runModal()
   }
 }

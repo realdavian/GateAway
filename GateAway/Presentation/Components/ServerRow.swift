@@ -45,7 +45,7 @@ struct ServerRow: View {
         VStack(spacing: 2) {
           Text("\(ping)")
             .font(.system(size: 13, design: .monospaced))
-          Text("ms")
+          Text("ms".localized)
             .font(.caption2)
             .foregroundColor(.secondary)
         }
@@ -62,7 +62,7 @@ struct ServerRow: View {
         VStack(spacing: 2) {
           Text(formatSpeed(speed))
             .font(.system(size: 13, design: .monospaced))
-          Text("Mbps")
+          Text("Mbps".localized)
             .font(.caption2)
             .foregroundColor(.secondary)
         }
@@ -90,7 +90,7 @@ struct ServerRow: View {
       if isBlacklisted {
         Image(systemName: "xmark.circle.fill")
           .foregroundColor(.red)
-          .help("Blacklisted")
+          .help("Blacklisted".localized)
       }
 
       // Actions
@@ -103,7 +103,7 @@ struct ServerRow: View {
           }) {
             HStack(spacing: 4) {
               Image(systemName: "xmark.circle.fill")
-              Text("Disconnect")
+              Text("Disconnect".localized)
             }
             .font(.caption)
             .padding(.horizontal, 10)
@@ -124,7 +124,7 @@ struct ServerRow: View {
           }) {
             HStack(spacing: 4) {
               Image(systemName: "stop.circle.fill")
-              Text("Stop")
+              Text("Stop".localized)
             }
             .font(.caption)
             .padding(.horizontal, 10)
@@ -140,7 +140,7 @@ struct ServerRow: View {
             Log.debug("Connect button tapped for \(server.countryLong)")
             onConnect()
           }) {
-            Text("Connect")
+            Text("Connect".localized)
               .font(.caption)
               .padding(.horizontal, 12)
               .padding(.vertical, 6)
@@ -162,7 +162,7 @@ struct ServerRow: View {
             .cornerRadius(6)
         }
         .buttonStyle(.plain)
-        .help("Add to Blacklist")
+        .help("Add to Blacklist".localized)
       }
     }
     .padding(.horizontal)

@@ -22,6 +22,7 @@
 // MARK: - Connection States
 "Connected" = "已連線";
 "Connecting" = "正在連線";
+"Connecting..." = "正在連線...";
 "Disconnected" = "未連線";
 "Disconnecting" = "正在中斷";
 "Disconnecting..." = "正在中斷...";
@@ -97,6 +98,7 @@
 "Disabled" = "已停用";
 "Enable Touch ID..." = "啟用 Touch ID...";
 "Test Touch ID..." = "測試 Touch ID...";
+"Touch ID Test Result" = "Touch ID測試結果";
 "Remove..." = "移除...";
 "Protection" = "保護";
 "Kill Switch" = "強制斷網開關 (Kill Switch)";
@@ -124,3 +126,150 @@
 "The password you entered is incorrect. Please try again." = "您輸入的密碼不正確。請重試。";
 "Try Again" = "再試一次";
 "Failed to Save Password" = "儲存密碼失敗";
+
+// MARK: - Add to Blacklist
+"Add to Blacklist" = "加入黑名單";
+"Select Server" = "選擇伺服器";
+"Select a server..." = "選擇伺服器...";
+"Reason (Optional)" = "原因（選填）";
+"Expires After" = "過期時間";
+"e.g., Too slow, Connection failed" = "例如：太慢，連線失敗";
+"1 Hour" = "1 小時";
+"2 Hours" = "2 小時";
+"8 Hours" = "8 小時";
+"1 Day" = "1 天";
+"7 Days" = "7 天";
+"Never" = "永不";
+"No servers available. Refresh the server list from the Servers tab." = "沒有可用的伺服器。請從「伺服器」分頁重新整理伺服器列表。";
+
+// MARK: - Connection Section
+"Establishing tunnel..." = "建立通道中...";
+"Connection Statistics" = "連線統計";
+"Success Rate" = "成功率";
+"Avg Connection Time" = "平均連線時間";
+"Total Attempts: %d" = "總嘗試次數：%d";
+"%d successful" = "%d 次成功";
+"Download" = "下載";
+"Upload" = "上傳";
+
+// MARK: - Backend Section
+"VPN Backend" = "VPN 後端";
+"OpenVPN CLI" = "OpenVPN CLI";
+"Installed • Version %@" = "已安裝 • 版本 %@";
+"Not Installed" = "未安裝";
+"Install" = "安裝";
+"Requires Homebrew package manager" = "需要 Homebrew 套件管理員";
+"Install Homebrew?" = "安裝 Homebrew？";
+"OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?" = "OpenVPN 需要 Homebrew 套件管理員。您想同時安裝 Homebrew 和 OpenVPN 嗎？";
+"Install Both" = "同時安裝";
+
+
+// MARK: - Server Row
+"ms" = "ms";
+"Mbps" = "Mbps";
+"Stop" = "停止";
+
+// MARK: - Blacklist Row
+"IP:" = "IP：";
+"Reason:" = "原因：";
+"Remove from Blacklist" = "從黑名單移除";
+
+// MARK: - Password Setup View
+"Enable Touch ID for VPN" = "為 VPN 啟用 Touch ID";
+"Your admin password will be securely stored" = "您的管理員密碼將被安全儲存";
+"Admin Password" = "管理員密碼";
+"The password you use for 'sudo' commands" = "您用於「sudo」指令的密碼";
+
+// MARK: - Terminal View
+"Terminal" = "終端機";
+"Running..." = "執行中...";
+"Run" = "執行";
+
+// MARK: - Errors
+"No servers" = "無伺服器";
+"Refresh Failed" = "重新整理失敗";
+"Disconnection Failed" = "中斷連線失敗";
+"Success" = "成功";
+"Failed" = "失敗";
+
+// MARK: - Time Intervals
+"5 min" = "5 分鐘";
+"15 min" = "15 分鐘";
+"30 min" = "30 分鐘";
+"1 hour" = "1 小時";
+
+// MARK: - About Section
+"About" = "關於";
+
+
+// MARK: - Additional Time Intervals
+"2 hours" = "2 小時";
+"24 hours" = "24 小時";
+
+
+// MARK: - About Section Labels
+"Backend" = "後端";
+"Protocol" = "協定";
+"Encryption" = "加密";
+"DNS" = "DNS";
+"DNS leak protection enabled via OpenVPN" = "透過 OpenVPN 啟用 DNS 洩漏保護";
+
+// MARK: - Tooltips
+"Blacklisted" = "已列入黑名單";
+"Add to Blacklist" = "加入黑名單";
+"Copy to clipboard" = "複製到剪貼簿";
+"Refresh server list from API" = "從 API 重新整理伺服器列表";
+
+// MARK: - New Format Strings
+"%dm ago" = "%d 分鐘前";
+"%d servers" = "%d 個伺服器";
+"%d Blacklisted Servers" = "%d 個黑名單伺服器";
+"Cache expired %d min ago" = "快取已過期 %d 分鐘";
+"Last updated %d min ago" = "最後更新於 %d 分鐘前";
+
+// MARK: - Status Bar Subtitles
+"Servers: %d" = "伺服器：%d";
+"Updated: %@" = "更新於：%@";
+
+// MARK: - Password Prompt
+"Administrator Password Required" = "需要管理員密碼";
+"GateAway needs your password to connect to VPN." = "GateAway 需要您的密碼才能連線到 VPN。";
+"Enter your password" = "輸入您的密碼";
+
+// MARK: - Error Messages (VPNControllerError)
+"VPN backend not available: %@" = "VPN 後端無法使用：%@";
+"Connection failed: %@" = "連線失敗：%@";
+"Disconnection failed: %@" = "中斷連線失敗：%@";
+"Invalid configuration: %@" = "無效的設定：%@";
+"Authentication required. Please configure Touch ID or enter your password." = "需要驗證。請設定 Touch ID 或輸入您的密碼。";
+"Permission denied. Administrator privileges required." = "權限被拒絕。需要管理員權限。";
+"Connection timed out. Please try again." = "連線逾時。請重試。";
+"Install the required VPN software using Homebrew." = "使用 Homebrew 安裝所需的 VPN 軟體。";
+"Enable Touch ID in Settings → Authentication." = "在設定 → 驗證中啟用 Touch ID。";
+"Grant administrator privileges when prompted." = "在提示時授予管理員權限。";
+"Try a different server or check your internet connection." = "嘗試不同的伺服器或檢查您的網際網路連線。";
+
+// MARK: - Error Messages (KeychainError)
+"Failed to save password: %@" = "儲存密碼失敗：%@";
+"Failed to retrieve password: %@" = "擷取密碼失敗：%@";
+"Touch ID authentication was cancelled" = "Touch ID 驗證已取消";
+"Authentication failed" = "驗證失敗";
+"Touch ID is not available on this device" = "此裝置上不支援 Touch ID";
+"No password stored in Keychain" = "鑰匙圈中未儲存密碼";
+
+// MARK: - Error Messages (ScriptRunnerError)
+"Command failed: %@" = "指令失敗：%@";
+"Authentication required for privileged operation" = "特權操作需要驗證";
+"Invalid password format" = "無效的密碼格式";
+
+// MARK: - Error Messages (OpenVPNError)
+"OpenVPN is not installed. Please install it via Settings." = "未安裝 OpenVPN。請透過設定進行安裝。";
+"Failed to create OpenVPN configuration file." = "無法建立 OpenVPN 設定檔。";
+"VPN connection failed: %@" = "VPN 連線失敗：%@";
+"VPN disconnection failed: %@" = "VPN 中斷連線失敗：%@";
+"Permission denied. OpenVPN requires administrator privileges." = "權限被拒絕。OpenVPN 需要管理員權限。";
+
+// MARK: - Biometric Status Messages
+"%@ authentication successful!" = "%@ 驗證成功！";
+"Failed: %@" = "失敗：%@";
+"Failed to remove password: %@" = "移除密碼失敗：%@";

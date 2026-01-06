@@ -22,6 +22,7 @@
 // MARK: - Connection States
 "Connected" = "Connected";
 "Connecting" = "Connecting";
+"Connecting..." = "Connecting...";
 "Disconnected" = "Disconnected";
 "Disconnecting" = "Disconnecting";
 "Disconnecting..." = "Disconnecting...";
@@ -58,6 +59,8 @@
 
 // MARK: - Servers Tab
 "Search by country, IP, or hostname" = "Search by country, IP, or hostname";
+"%dm ago" = "%dm ago";
+"%d servers" = "%d servers";
 "Sort by" = "Sort by";
 "Country" = "Country";
 "Ping" = "Ping";
@@ -77,6 +80,7 @@
 // MARK: - Blacklist Tab
 "Add Server" = "Add Server";
 "No Blacklisted Servers" = "No Blacklisted Servers";
+"%d Blacklisted Servers" = "%d Blacklisted Servers";
 "Servers you blacklist will appear here" = "Servers you blacklist will appear here";
 "Hostname" = "Hostname";
 "Added" = "Added";
@@ -97,6 +101,7 @@
 "Disabled" = "Disabled";
 "Enable Touch ID..." = "Enable Touch ID...";
 "Test Touch ID..." = "Test Touch ID...";
+"Touch ID Test Result" = "Touch ID Test Result";
 "Remove..." = "Remove...";
 "Protection" = "Protection";
 "Kill Switch" = "Kill Switch";
@@ -110,6 +115,8 @@
 "Server List Cache" = "Server List Cache";
 "Cache TTL" = "Cache TTL";
 "How long to keep the server list cached before refreshing." = "How long to keep the server list cached before refreshing.";
+"Cache expired %d min ago" = "Cache expired %d min ago";
+"Last updated %d min ago" = "Last updated %d min ago";
 "Clear Cache" = "Clear Cache";
 "No cached data" = "No cached data";
 
@@ -124,3 +131,142 @@
 "The password you entered is incorrect. Please try again." = "The password you entered is incorrect. Please try again.";
 "Try Again" = "Try Again";
 "Failed to Save Password" = "Failed to Save Password";
+
+// MARK: - Add to Blacklist
+"Add to Blacklist" = "Add to Blacklist";
+"Select Server" = "Select Server";
+"Select a server..." = "Select a server...";
+"Reason (Optional)" = "Reason (Optional)";
+"Expires After" = "Expires After";
+"e.g., Too slow, Connection failed" = "e.g., Too slow, Connection failed";
+"1 Hour" = "1 Hour";
+"2 Hours" = "2 Hours";
+"8 Hours" = "8 Hours";
+"1 Day" = "1 Day";
+"7 Days" = "7 Days";
+"Never" = "Never";
+"No servers available. Refresh the server list from the Servers tab." = "No servers available. Refresh the server list from the Servers tab.";
+
+// MARK: - Connection Section
+"Establishing tunnel..." = "Establishing tunnel...";
+"Connection Statistics" = "Connection Statistics";
+"Success Rate" = "Success Rate";
+"Avg Connection Time" = "Avg Connection Time";
+"Total Attempts: %d" = "Total Attempts: %d";
+"%d successful" = "%d successful";
+"Download" = "Download";
+"Upload" = "Upload";
+
+// MARK: - Backend Section
+"VPN Backend" = "VPN Backend";
+"OpenVPN CLI" = "OpenVPN CLI";
+"Installed • Version %@" = "Installed • Version %@";
+"Not Installed" = "Not Installed";
+"Install" = "Install";
+"Requires Homebrew package manager" = "Requires Homebrew package manager";
+"Install Homebrew?" = "Install Homebrew?";
+"OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?" = "OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?";
+"Install Both" = "Install Both";
+
+
+// MARK: - Server Row
+"ms" = "ms";
+"Mbps" = "Mbps";
+"Stop" = "Stop";
+
+// MARK: - Blacklist Row
+"IP:" = "IP:";
+"Reason:" = "Reason:";
+"Remove from Blacklist" = "Remove from Blacklist";
+
+// MARK: - Password Setup View
+"Enable Touch ID for VPN" = "Enable Touch ID for VPN";
+"Your admin password will be securely stored" = "Your admin password will be securely stored";
+"Admin Password" = "Admin Password";
+"The password you use for 'sudo' commands" = "The password you use for 'sudo' commands";
+
+// MARK: - Terminal View
+"Terminal" = "Terminal";
+"Running..." = "Running...";
+"Run" = "Run";
+
+// MARK: - Errors
+"No servers" = "No servers";
+"Refresh Failed" = "Refresh Failed";
+"Disconnection Failed" = "Disconnection Failed";
+"Success" = "Success";
+"Failed" = "Failed";
+
+// MARK: - Time Intervals
+"5 min" = "5 min";
+"15 min" = "15 min";
+"30 min" = "30 min";
+"1 hour" = "1 hour";
+
+// MARK: - About Section
+"About" = "About";
+
+
+// MARK: - Additional Time Intervals
+"2 hours" = "2 hours";
+"24 hours" = "24 hours";
+
+
+// MARK: - About Section Labels
+"Backend" = "Backend";
+"Protocol" = "Protocol";
+"Encryption" = "Encryption";
+"DNS" = "DNS";
+"DNS leak protection enabled via OpenVPN" = "DNS leak protection enabled via OpenVPN";
+
+// MARK: - Tooltips
+"Blacklisted" = "Blacklisted";
+"Add to Blacklist" = "Add to Blacklist";
+"Copy to clipboard" = "Copy to clipboard";
+"Refresh server list from API" = "Refresh server list from API";
+
+// MARK: - Status Bar Subtitles
+"Servers: %d" = "Servers: %d";
+"Updated: %@" = "Updated: %@";
+
+// MARK: Password Prompt
+"Administrator Password Required" = "Administrator Password Required";
+"GateAway needs your password to connect to VPN." = "GateAway needs your password to connect to VPN.";
+"Enter your password" = "Enter your password";
+
+// MARK: - Error Messages (VPNControllerError)
+"VPN backend not available: %@" = "VPN backend not available: %@";
+"Connection failed: %@" = "Connection failed: %@";
+"Disconnection failed: %@" = "Disconnection failed: %@";
+"Invalid configuration: %@" = "Invalid configuration: %@";
+"Authentication required. Please configure Touch ID or enter your password." = "Authentication required. Please configure Touch ID or enter your password.";
+"Permission denied. Administrator privileges required." = "Permission denied. Administrator privileges required.";
+"Connection timed out. Please try again." = "Connection timed out. Please try again.";
+"Install the required VPN software using Homebrew." = "Install the required VPN software using Homebrew.";
+"Enable Touch ID in Settings → Authentication." = "Enable Touch ID in Settings → Authentication.";
+"Grant administrator privileges when prompted." = "Grant administrator privileges when prompted.";
+"Try a different server or check your internet connection." = "Try a different server or check your internet connection.";
+
+// MARK: - Error Messages (KeychainError)
+"Failed to save password: %@" = "Failed to save password: %@";
+"Failed to retrieve password: %@" = "Failed to retrieve password: %@";
+"Touch ID authentication was cancelled" = "Touch ID authentication was cancelled";
+"Touch ID is not available on this device" = "Touch ID is not available on this device";
+"No password stored in Keychain" = "No password stored in Keychain";
+
+// MARK: - Error Messages (ScriptRunnerError)
+"Command failed: %@" = "Command failed: %@";
+"Authentication required for privileged operation" = "Authentication required for privileged operation";
+"Invalid password format" = "Invalid password format";
+
+// MARK: - Error Messages (OpenVPNError)
+"OpenVPN is not installed. Please install it via Settings." = "OpenVPN is not installed. Please install it via Settings.";
+"Failed to create OpenVPN configuration file." = "Failed to create OpenVPN configuration file.";
+"VPN connection failed: %@" = "VPN connection failed: %@";
+"VPN disconnection failed: %@" = "VPN disconnection failed: %@";
+"Permission denied. OpenVPN requires administrator privileges." = "Permission denied. OpenVPN requires administrator privileges.";
+
+// MARK: - Biometric Status Messages
+"%@ authentication successful!" = "%@ authentication successful!";
+"Failed: %@" = "Failed: %@";
+"Failed to remove password: %@" = "Failed to remove password: %@";

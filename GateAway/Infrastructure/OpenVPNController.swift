@@ -37,15 +37,15 @@ final class OpenVPNController: VPNControlling {
     var errorDescription: String? {
       switch self {
       case .notInstalled:
-        return "OpenVPN is not installed. Please install it via Settings."
+        return "OpenVPN is not installed. Please install it via Settings.".localized
       case .configurationCreationFailed:
-        return "Failed to create OpenVPN configuration file."
+        return "Failed to create OpenVPN configuration file.".localized
       case .connectionFailed(let message):
-        return "VPN connection failed: \(message)"
+        return "VPN connection failed: %@".localized(with: message)
       case .disconnectionFailed(let message):
-        return "VPN disconnection failed: \(message)"
+        return "VPN disconnection failed: %@".localized(with: message)
       case .permissionDenied:
-        return "Permission denied. OpenVPN requires administrator privileges."
+        return "Permission denied. OpenVPN requires administrator privileges.".localized
       }
     }
   }

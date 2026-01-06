@@ -22,6 +22,7 @@
 // MARK: - Connection States
 "Connected" = "Disambung";
 "Connecting" = "Menyambung";
+"Connecting..." = "Menyambung...";
 "Disconnected" = "Diputuskan";
 "Disconnecting" = "Memutuskan";
 "Disconnecting..." = "Memutuskan...";
@@ -97,6 +98,7 @@
 "Disabled" = "Dilumpuhkan";
 "Enable Touch ID..." = "Dayakan Touch ID...";
 "Test Touch ID..." = "Uji Touch ID...";
+"Touch ID Test Result" = "Hasil Uji Touch ID";
 "Remove..." = "Buang...";
 "Protection" = "Perlindungan";
 "Kill Switch" = "Suis Mati";
@@ -124,3 +126,150 @@
 "The password you entered is incorrect. Please try again." = "Kata laluan yang anda masukkan adalah salah. Sila cuba lagi.";
 "Try Again" = "Cuba Lagi";
 "Failed to Save Password" = "Gagal Menyimpan Kata Laluan";
+
+// MARK: - Add to Blacklist
+"Add to Blacklist" = "Tambah ke Senarai Hitam";
+"Select Server" = "Pilih Pelayan";
+"Select a server..." = "Pilih pelayan...";
+"Reason (Optional)" = "Sebab (Pilihan)";
+"Expires After" = "Tamat Tempoh Selepas";
+"e.g., Too slow, Connection failed" = "cth., Terlalu perlahan, Sambungan gagal";
+"1 Hour" = "1 Jam";
+"2 Hours" = "2 Jam";
+"8 Hours" = "8 Jam";
+"1 Day" = "1 Hari";
+"7 Days" = "7 Hari";
+"Never" = "Tidak Pernah";
+"No servers available. Refresh the server list from the Servers tab." = "Tiada pelayan tersedia. Muat semula senarai pelayan dari tab Pelayan.";
+
+// MARK: - Connection Section
+"Establishing tunnel..." = "Menubuhkan terowong...";
+"Connection Statistics" = "Statistik Sambungan";
+"Success Rate" = "Kadar Kejayaan";
+"Avg Connection Time" = "Purata Masa Sambungan";
+"Total Attempts: %d" = "Jumlah Percubaan: %d";
+"%d successful" = "%d berjaya";
+"Download" = "Muat Turun";
+"Upload" = "Muat Naik";
+
+// MARK: - Backend Section
+"VPN Backend" = "Bahagian Belakang VPN";
+"OpenVPN CLI" = "CLI OpenVPN";
+"Installed • Version %@" = "Dipasang • Versi %@";
+"Not Installed" = "Tidak Dipasang";
+"Install" = "Pasang";
+"Requires Homebrew package manager" = "Memerlukan pengurus pakej Homebrew";
+"Install Homebrew?" = "Pasang Homebrew?";
+"OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?" = "OpenVPN memerlukan pengurus pakej Homebrew. Adakah anda ingin memasang kedua-dua Homebrew dan OpenVPN?";
+"Install Both" = "Pasang Kedua-duanya";
+
+
+// MARK: - Server Row
+"ms" = "ms";
+"Mbps" = "Mbps";
+"Stop" = "Berhenti";
+
+// MARK: - Blacklist Row
+"IP:" = "IP:";
+"Reason:" = "Sebab:";
+"Remove from Blacklist" = "Buang daripada Senarai Hitam";
+
+// MARK: - Password Setup View
+"Enable Touch ID for VPN" = "Dayakan Touch ID untuk VPN";
+"Your admin password will be securely stored" = "Kata laluan pentadbir anda akan disimpan dengan selamat";
+"Admin Password" = "Kata Laluan Pentadbir";
+"The password you use for 'sudo' commands" = "Kata laluan yang anda gunakan untuk arahan 'sudo'";
+
+// MARK: - Terminal View
+"Terminal" = "Terminal";
+"Running..." = "Sedang berjalan...";
+"Run" = "Jalankan";
+
+// MARK: - Errors
+"No servers" = "Tiada pelayan";
+"Refresh Failed" = "Muat Semula Gagal";
+"Disconnection Failed" = "Pemutusan Gagal";
+"Success" = "Berjaya";
+"Failed" = "Gagal";
+
+// MARK: - Time Intervals
+"5 min" = "5 min";
+"15 min" = "15 min";
+"30 min" = "30 min";
+"1 hour" = "1 jam";
+
+// MARK: - About Section
+"About" = "Mengenai";
+
+
+// MARK: - Additional Time Intervals
+"2 hours" = "2 jam";
+"24 hours" = "24 jam";
+
+
+// MARK: - About Section Labels
+"Backend" = "Bahagian Belakang";
+"Protocol" = "Protokol";
+"Encryption" = "Penyulitan";
+"DNS" = "DNS";
+"DNS leak protection enabled via OpenVPN" = "Perlindungan kebocoran DNS didayakan melalui OpenVPN";
+
+// MARK: - Tooltips
+"Blacklisted" = " disenarai hitam";
+"Add to Blacklist" = "Tambah ke Senarai Hitam";
+"Copy to clipboard" = "Salin ke papan keratan";
+"Refresh server list from API" = "Muat semula senarai pelayan dari API";
+
+// MARK: - New Format Strings
+"%dm ago" = "%d minit yang lalu";
+"%d servers" = "%d pelayan";
+"%d Blacklisted Servers" = "%d Pelayan Senarai Hitam";
+"Cache expired %d min ago" = "Cache tamat tempoh %d minit yang lalu";
+"Last updated %d min ago" = "Terakhir dikemas kini %d minit yang lalu";
+
+// MARK: - Status Bar Subtitles
+"Servers: %d" = "Pelayan: %d";
+"Updated: %@" = "Dikemas kini: %@";
+
+// MARK: - Password Prompt
+"Administrator Password Required" = "Kata Laluan Pentadbir Diperlukan";
+"GateAway needs your password to connect to VPN." = "GateAway memerlukan kata laluan anda untuk menyambung ke VPN.";
+"Enter your password" = "Masukkan kata laluan anda";
+
+// MARK: - Error Messages (VPNControllerError)
+"VPN backend not available: %@" = "Backend VPN tidak tersedia: %@";
+"Connection failed: %@" = "Sambungan gagal: %@";
+"Disconnection failed: %@" = "Pemutusan gagal: %@";
+"Invalid configuration: %@" = "Konfigurasi tidak sah: %@";
+"Authentication required. Please configure Touch ID or enter your password." = "Pengesahan diperlukan. Sila konfigurasikan Touch ID atau masukkan kata laluan anda.";
+"Permission denied. Administrator privileges required." = "Izin ditolak. Keistimewaan pentadbir diperlukan.";
+"Connection timed out. Please try again." = "Sambungan tamat masa. Sila cuba lagi.";
+"Install the required VPN software using Homebrew." = "Pasang perisian VPN yang diperlukan menggunakan Homebrew.";
+"Enable Touch ID in Settings → Authentication." = "Dayakan Touch ID dalam Tetapan → Pengesahan.";
+"Grant administrator privileges when prompted." = "Berikan keistimewaan pentadbir apabila diminta.";
+"Try a different server or check your internet connection." = "Cuba pelayan lain atau semak sambungan internet anda.";
+
+// MARK: - Error Messages (KeychainError)
+"Failed to save password: %@" = "Gagal menyimpan kata laluan: %@";
+"Failed to retrieve password: %@" = "Gagal mendapatkan kata laluan: %@";
+"Touch ID authentication was cancelled" = "Pengesahan Touch ID dibatalkan";
+"Authentication failed" = "Pengesahan gagal";
+"Touch ID is not available on this device" = "Touch ID tidak tersedia pada peranti ini";
+"No password stored in Keychain" = "Tiada kata laluan disimpan dalam Rantai Kunci";
+
+// MARK: - Error Messages (ScriptRunnerError)
+"Command failed: %@" = "Arahan gagal: %@";
+"Authentication required for privileged operation" = "Pengesahan diperlukan untuk operasi istimewa";
+"Invalid password format" = "Format kata laluan tidak sah";
+
+// MARK: - Error Messages (OpenVPNError)
+"OpenVPN is not installed. Please install it via Settings." = "OpenVPN tidak dipasang. Sila pasang melalui Tetapan.";
+"Failed to create OpenVPN configuration file." = "Gagal mencipta fail konfigurasi OpenVPN.";
+"VPN connection failed: %@" = "Sambungan VPN gagal: %@";
+"VPN disconnection failed: %@" = "Pemutusan VPN gagal: %@";
+"Permission denied. OpenVPN requires administrator privileges." = "Izin ditolak. OpenVPN memerlukan keistimewaan pentadbir.";
+
+// MARK: - Biometric Status Messages
+"%@ authentication successful!" = "%@ pengesahan berjaya!";
+"Failed: %@" = "Gagal: %@";
+"Failed to remove password: %@" = "Gagal membuang kata laluan: %@";

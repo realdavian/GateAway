@@ -22,6 +22,7 @@
 // MARK: - Connection States
 "Connected" = "接続済み";
 "Connecting" = "接続中";
+"Connecting..." = "接続中...";
 "Disconnected" = "未接続";
 "Disconnecting" = "切断中";
 "Disconnecting..." = "切断中...";
@@ -97,6 +98,7 @@
 "Disabled" = "無効";
 "Enable Touch ID..." = "Touch IDを有効にする...";
 "Test Touch ID..." = "Touch IDをテスト...";
+"Touch ID Test Result" = "Touch IDのテスト結果";
 "Remove..." = "削除...";
 "Protection" = "保護";
 "Kill Switch" = "キルスイッチ";
@@ -124,3 +126,150 @@
 "The password you entered is incorrect. Please try again." = "入力されたパスワードが正しくありません。もう一度お試しください。";
 "Try Again" = "再試行";
 "Failed to Save Password" = "パスワードの保存に失敗しました";
+
+// MARK: - Add to Blacklist
+"Add to Blacklist" = "ブラックリストに追加";
+"Select Server" = "サーバーを選択";
+"Select a server..." = "サーバーを選択...";
+"Reason (Optional)" = "理由（任意）";
+"Expires After" = "有効期限";
+"e.g., Too slow, Connection failed" = "例：遅すぎる、接続失敗";
+"1 Hour" = "1時間";
+"2 Hours" = "2時間";
+"8 Hours" = "8時間";
+"1 Day" = "1日";
+"7 Days" = "7日";
+"Never" = "無期限";
+"No servers available. Refresh the server list from the Servers tab." = "利用可能なサーバーがありません。サーバータブからリストを更新してください。";
+
+// MARK: - Connection Section
+"Establishing tunnel..." = "トンネルを確立中...";
+"Connection Statistics" = "接続統計";
+"Success Rate" = "成功率";
+"Avg Connection Time" = "平均接続時間";
+"Total Attempts: %d" = "総試行回数: %d";
+"%d successful" = "%d 回成功";
+"Download" = "ダウンロード";
+"Upload" = "アップロード";
+
+// MARK: - Backend Section
+"VPN Backend" = "VPNバックエンド";
+"OpenVPN CLI" = "OpenVPN CLI";
+"Installed • Version %@" = "インストール済み • バージョン %@";
+"Not Installed" = "未インストール";
+"Install" = "インストール";
+"Requires Homebrew package manager" = "Homebrewパッケージマネージャーが必要です";
+"Install Homebrew?" = "Homebrewをインストールしますか？";
+"OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?" = "OpenVPNにはHomebrewパッケージマネージャーが必要です。HomebrewとOpenVPNの両方をインストールしますか？";
+"Install Both" = "両方をインストール";
+
+
+// MARK: - Server Row
+"ms" = "ms";
+"Mbps" = "Mbps";
+"Stop" = "停止";
+
+// MARK: - Blacklist Row
+"IP:" = "IP:";
+"Reason:" = "理由:";
+"Remove from Blacklist" = "ブラックリストから削除";
+
+// MARK: - Password Setup View
+"Enable Touch ID for VPN" = "VPN用Touch IDを有効化";
+"Your admin password will be securely stored" = "管理者パスワードは安全に保存されます";
+"Admin Password" = "管理者パスワード";
+"The password you use for 'sudo' commands" = "'sudo'コマンドに使用するパスワード";
+
+// MARK: - Terminal View
+"Terminal" = "ターミナル";
+"Running..." = "実行中...";
+"Run" = "実行";
+
+// MARK: - Errors
+"No servers" = "サーバーなし";
+"Refresh Failed" = "更新失敗";
+"Disconnection Failed" = "切断失敗";
+"Success" = "成功";
+"Failed" = "失敗";
+
+// MARK: - Time Intervals
+"5 min" = "5分";
+"15 min" = "15分";
+"30 min" = "30分";
+"1 hour" = "1時間";
+
+// MARK: - About Section
+"About" = "アプリについて";
+
+
+// MARK: - Additional Time Intervals
+"2 hours" = "2時間";
+"24 hours" = "24時間";
+
+
+// MARK: - About Section Labels
+"Backend" = "バックエンド";
+"Protocol" = "プロトコル";
+"Encryption" = "暗号化";
+"DNS" = "DNS";
+"DNS leak protection enabled via OpenVPN" = "OpenVPNによるDNSリーク保護が有効";
+
+// MARK: - Tooltips
+"Blacklisted" = "ブラックリスト登録済み";
+"Add to Blacklist" = "ブラックリストに追加";
+"Copy to clipboard" = "クリップボードにコピー";
+"Refresh server list from API" = "APIからサーバーリストを更新";
+
+// MARK: - New Format Strings
+"%dm ago" = "%d分前";
+"%d servers" = "%d サーバー";
+"%d Blacklisted Servers" = "%d ブラックリストサーバー";
+"Cache expired %d min ago" = "キャッシュは%d分前に期限切れ";
+"Last updated %d min ago" = "最終更新: %d分前";
+
+// MARK: - Status Bar Subtitles
+"Servers: %d" = "サーバー: %d";
+"Updated: %@" = "更新: %@";
+
+// MARK: - Password Prompt
+"Administrator Password Required" = "管理者パスワードが必要です";
+"GateAway needs your password to connect to VPN." = "VPNに接続するにはGateAwayにパスワードが必要です。";
+"Enter your password" = "パスワードを入力してください";
+
+// MARK: - Error Messages (VPNControllerError)
+"VPN backend not available: %@" = "VPNバックエンドが利用できません: %@";
+"Connection failed: %@" = "接続に失敗しました: %@";
+"Disconnection failed: %@" = "切断に失敗しました: %@";
+"Invalid configuration: %@" = "無効な設定です: %@";
+"Authentication required. Please configure Touch ID or enter your password." = "認証が必要です。Touch IDを設定するか、パスワードを入力してください。";
+"Permission denied. Administrator privileges required." = "アクセスが拒否されました。管理者権限が必要です。";
+"Connection timed out. Please try again." = "接続がタイムアウトしました。もう一度お試しください。";
+"Install the required VPN software using Homebrew." = "Homebrewを使用して必要なVPNソフトウェアをインストールしてください。";
+"Enable Touch ID in Settings → Authentication." = "設定 → 認証でTouch IDを有効にしてください。";
+"Grant administrator privileges when prompted." = "プロンプトが表示されたら管理者権限を付与してください。";
+"Try a different server or check your internet connection." = "別のサーバーを試すか、インターネット接続を確認してください。";
+
+// MARK: - Error Messages (KeychainError)
+"Failed to save password: %@" = "パスワードの保存に失敗しました: %@";
+"Failed to retrieve password: %@" = "パスワードの取得に失敗しました: %@";
+"Touch ID authentication was cancelled" = "Touch ID認証がキャンセルされました";
+"Authentication failed" = "認証に失敗しました";
+"Touch ID is not available on this device" = "このデバイスではTouch IDを利用できません";
+"No password stored in Keychain" = "キーチェーンにパスワードが保存されていません";
+
+// MARK: - Error Messages (ScriptRunnerError)
+"Command failed: %@" = "コマンドが失敗しました: %@";
+"Authentication required for privileged operation" = "特権操作には認証が必要です";
+"Invalid password format" = "無効なパスワード形式です";
+
+// MARK: - Error Messages (OpenVPNError)
+"OpenVPN is not installed. Please install it via Settings." = "OpenVPNがインストールされていません。設定からインストールしてください。";
+"Failed to create OpenVPN configuration file." = "OpenVPN設定ファイルの作成に失敗しました。";
+"VPN connection failed: %@" = "VPN接続に失敗しました: %@";
+"VPN disconnection failed: %@" = "VPN切断に失敗しました: %@";
+"Permission denied. OpenVPN requires administrator privileges." = "アクセスが拒否されました。OpenVPNには管理者権限が必要です。";
+
+// MARK: - Biometric Status Messages
+"%@ authentication successful!" = "%@ 認証に成功しました！";
+"Failed: %@" = "失敗: %@";
+"Failed to remove password: %@" = "パスワードの削除に失敗しました: %@";

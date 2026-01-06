@@ -18,14 +18,16 @@ struct AddToBlacklistView: View {
   let onAdd: (VPNServer, String, BlacklistExpiry) -> Void
 
   // Expiry presets for the grid
-  private let expiryPresets: [(String, BlacklistExpiry)] = [
-    ("1 Hour", .duration(3600)),
-    ("2 Hours", .duration(7200)),
-    ("8 Hours", .duration(28800)),
-    ("1 Day", .duration(86400)),
-    ("7 Days", .duration(604800)),
-    ("Never", .never),
-  ]
+  private var expiryPresets: [(String, BlacklistExpiry)] {
+    [
+      ("1 Hour".localized, .duration(3600)),
+      ("2 Hours".localized, .duration(7200)),
+      ("8 Hours".localized, .duration(28800)),
+      ("1 Day".localized, .duration(86400)),
+      ("7 Days".localized, .duration(604800)),
+      ("Never".localized, .never),
+    ]
+  }
 
   init(
     preselectedServer: VPNServer? = nil,
@@ -52,7 +54,7 @@ struct AddToBlacklistView: View {
       // Header
       HStack {
         VStack(alignment: .leading, spacing: 4) {
-          Text("Add to Blacklist")
+          Text("Add to Blacklist".localized)
             .font(.title2)
             .fontWeight(.bold)
 
@@ -86,24 +88,24 @@ struct AddToBlacklistView: View {
         // Server selection (only show if no preselected server)
         if preselectedServer == nil {
           VStack(alignment: .leading, spacing: 8) {
-            Text("Select Server")
+            Text("Select Server".localized)
               .font(.headline)
 
             if serverStore.isLoading {
               HStack {
                 ProgressView()
                   .scaleEffect(0.7)
-                Text("Loading servers...")
+                Text("Loading servers...".localized)
                   .font(.caption)
                   .foregroundColor(.secondary)
               }
             } else if serverStore.servers.isEmpty {
-              Text("No servers available. Refresh the server list from the Servers tab.")
+              Text("No servers available. Refresh the server list from the Servers tab.".localized)
                 .font(.caption)
                 .foregroundColor(.orange)
             } else {
               Picker("Server", selection: $selectedServerId) {
-                Text("Select a server...").tag("")
+                Text("Select a server...".localized).tag("")
                 ForEach(serverStore.servers.sorted { $0.countryLong < $1.countryLong }) { server in
                   Text(
                     "\(flagEmoji(for: server.countryShort)) \(server.countryLong) - \(server.ip)"
@@ -118,10 +120,10 @@ struct AddToBlacklistView: View {
 
         // Reason
         VStack(alignment: .leading, spacing: 8) {
-          Text("Reason (Optional)")
+          Text("Reason (Optional)".localized)
             .font(.headline)
 
-          TextField("e.g., Too slow, Connection failed", text: $reason)
+          TextField("e.g., Too slow, Connection failed".localized, text: $reason)
             .textFieldStyle(.plain)
             .padding(10)
             .background(Color.gray.opacity(0.1))
@@ -130,7 +132,7 @@ struct AddToBlacklistView: View {
 
         // Expiry - Grid layout
         VStack(alignment: .leading, spacing: 12) {
-          Text("Expires After")
+          Text("Expires After".localized)
             .font(.headline)
 
           LazyVGrid(
@@ -165,7 +167,7 @@ struct AddToBlacklistView: View {
       HStack {
         Spacer()
 
-        Button("Add to Blacklist") {
+        Button("Add to Blacklist".localized) {
           if let server = selectedServer {
             onAdd(server, reason, selectedExpiry)
             presentationMode.wrappedValue.dismiss()

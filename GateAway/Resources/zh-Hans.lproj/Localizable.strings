@@ -22,6 +22,7 @@
 // MARK: - Connection States
 "Connected" = "已连接";
 "Connecting" = "正在连接";
+"Connecting..." = "正在连接...";
 "Disconnected" = "未连接";
 "Disconnecting" = "正在断开";
 "Disconnecting..." = "正在断开...";
@@ -97,6 +98,7 @@
 "Disabled" = "已禁用";
 "Enable Touch ID..." = "启用 Touch ID...";
 "Test Touch ID..." = "测试 Touch ID...";
+"Touch ID Test Result" = "Touch ID测试结果";
 "Remove..." = "移除...";
 "Protection" = "保护";
 "Kill Switch" = "杀手开关 (Kill Switch)";
@@ -124,3 +126,150 @@
 "The password you entered is incorrect. Please try again." = "您输入的密码不正确。请重试。";
 "Try Again" = "再试一次";
 "Failed to Save Password" = "保存密码失败";
+
+// MARK: - Add to Blacklist
+"Add to Blacklist" = "添加到黑名单";
+"Select Server" = "选择服务器";
+"Select a server..." = "选择服务器...";
+"Reason (Optional)" = "原因（可选）";
+"Expires After" = "过期时间";
+"e.g., Too slow, Connection failed" = "例如：太慢，连接失败";
+"1 Hour" = "1 小时";
+"2 Hours" = "2 小时";
+"8 Hours" = "8 小时";
+"1 Day" = "1 天";
+"7 Days" = "7 天";
+"Never" = "永不";
+"No servers available. Refresh the server list from the Servers tab." = "没有可用服务器。请从“服务器”选项卡刷新服务器列表。";
+
+// MARK: - Connection Section
+"Establishing tunnel..." = "建立隧道中...";
+"Connection Statistics" = "连接统计";
+"Success Rate" = "成功率";
+"Avg Connection Time" = "平均连接时间";
+"Total Attempts: %d" = "总尝试次数：%d";
+"%d successful" = "%d 次成功";
+"Download" = "下载";
+"Upload" = "上传";
+
+// MARK: - Backend Section
+"VPN Backend" = "VPN 后端";
+"OpenVPN CLI" = "OpenVPN CLI";
+"Installed • Version %@" = "已安装 • 版本 %@";
+"Not Installed" = "未安装";
+"Install" = "安装";
+"Requires Homebrew package manager" = "需要 Homebrew 包管理器";
+"Install Homebrew?" = "安装 Homebrew？";
+"OpenVPN requires Homebrew package manager. Would you like to install both Homebrew and OpenVPN?" = "OpenVPN 需要 Homebrew 包管理器。您想同时安装 Homebrew 和 OpenVPN 吗？";
+"Install Both" = "同时安装";
+
+
+// MARK: - Server Row
+"ms" = "ms";
+"Mbps" = "Mbps";
+"Stop" = "停止";
+
+// MARK: - Blacklist Row
+"IP:" = "IP：";
+"Reason:" = "原因：";
+"Remove from Blacklist" = "从黑名单移除";
+
+// MARK: - Password Setup View
+"Enable Touch ID for VPN" = "为 VPN 启用 Touch ID";
+"Your admin password will be securely stored" = "您的管理员密码将被安全存储";
+"Admin Password" = "管理员密码";
+"The password you use for 'sudo' commands" = "您用于“sudo”命令的密码";
+
+// MARK: - Terminal View
+"Terminal" = "终端";
+"Running..." = "运行中...";
+"Run" = "运行";
+
+// MARK: - Errors
+"No servers" = "无服务器";
+"Refresh Failed" = "刷新失败";
+"Disconnection Failed" = "断开连接失败";
+"Success" = "成功";
+"Failed" = "失败";
+
+// MARK: - Time Intervals
+"5 min" = "5 分钟";
+"15 min" = "15 分钟";
+"30 min" = "30 分钟";
+"1 hour" = "1 小时";
+
+// MARK: - About Section
+"About" = "关于";
+
+
+// MARK: - Additional Time Intervals
+"2 hours" = "2 小时";
+"24 hours" = "24 小时";
+
+
+// MARK: - About Section Labels
+"Backend" = "后端";
+"Protocol" = "协议";
+"Encryption" = "加密";
+"DNS" = "DNS";
+"DNS leak protection enabled via OpenVPN" = "通过 OpenVPN 启用 DNS 泄漏保护";
+
+// MARK: - Tooltips
+"Blacklisted" = "已拉黑";
+"Add to Blacklist" = "添加到黑名单";
+"Copy to clipboard" = "复制到剪贴板";
+"Refresh server list from API" = "从 API 刷新服务器列表";
+
+// MARK: - New Format Strings
+"%dm ago" = "%d 分钟前";
+"%d servers" = "%d 个服务器";
+"%d Blacklisted Servers" = "%d 个黑名单服务器";
+"Cache expired %d min ago" = "缓存已过期 %d 分钟";
+"Last updated %d min ago" = "最后更新于 %d 分钟前";
+
+// MARK: - Status Bar Subtitles
+"Servers: %d" = "服务器：%d";
+"Updated: %@" = "更新于：%@";
+
+// MARK: - Password Prompt
+"Administrator Password Required" = "需要管理员密码";
+"GateAway needs your password to connect to VPN." = "GateAway 需要您的密码才能连接到 VPN。";
+"Enter your password" = "输入您的密码";
+
+// MARK: - Error Messages (VPNControllerError)
+"VPN backend not available: %@" = "VPN 后端不可用：%@";
+"Connection failed: %@" = "连接失败：%@";
+"Disconnection failed: %@" = "断开连接失败：%@";
+"Invalid configuration: %@" = "无效配置：%@";
+"Authentication required. Please configure Touch ID or enter your password." = "需要身份验证。请配置 Touch ID 或输入您的密码。";
+"Permission denied. Administrator privileges required." = "权限被拒绝。需要管理员权限。";
+"Connection timed out. Please try again." = "连接超时。请重试。";
+"Install the required VPN software using Homebrew." = "使用 Homebrew 安装所需的 VPN 软件。";
+"Enable Touch ID in Settings → Authentication." = "在设置 → 身份验证中启用 Touch ID。";
+"Grant administrator privileges when prompted." = "在提示时授予管理员权限。";
+"Try a different server or check your internet connection." = "尝试不同的服务器或检查您的互联网连接。";
+
+// MARK: - Error Messages (KeychainError)
+"Failed to save password: %@" = "保存密码失败：%@";
+"Failed to retrieve password: %@" = "获取密码失败：%@";
+"Touch ID authentication was cancelled" = "Touch ID 验证已取消";
+"Authentication failed" = "身份验证失败";
+"Touch ID is not available on this device" = "此设备上不支持 Touch ID";
+"No password stored in Keychain" = "钥匙串中未存储密码";
+
+// MARK: - Error Messages (ScriptRunnerError)
+"Command failed: %@" = "命令失败：%@";
+"Authentication required for privileged operation" = "特权操作需要身份验证";
+"Invalid password format" = "无效的密码格式";
+
+// MARK: - Error Messages (OpenVPNError)
+"OpenVPN is not installed. Please install it via Settings." = "未安装 OpenVPN。请通过设置进行安装。";
+"Failed to create OpenVPN configuration file." = "无法创建 OpenVPN 配置文件。";
+"VPN connection failed: %@" = "VPN 连接失败：%@";
+"VPN disconnection failed: %@" = "VPN 断开连接失败：%@";
+"Permission denied. OpenVPN requires administrator privileges." = "权限被拒绝。OpenVPN 需要管理员权限。";
+
+// MARK: - Biometric Status Messages
+"%@ authentication successful!" = "%@ 身份验证成功！";
+"Failed: %@" = "失败：%@";
+"Failed to remove password: %@" = "删除密码失败：%@";

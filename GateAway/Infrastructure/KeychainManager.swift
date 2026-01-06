@@ -51,17 +51,17 @@ final class KeychainManager: KeychainManagerProtocol {
     var errorDescription: String? {
       switch self {
       case .saveFailed(let status):
-        return "Failed to save password: \(status)"
+        return "Failed to save password: %@".localized(with: String(status))
       case .retrievalFailed(let status):
-        return "Failed to retrieve password: \(status)"
+        return "Failed to retrieve password: %@".localized(with: String(status))
       case .authenticationCancelled:
-        return "Touch ID authentication was cancelled"
+        return "Touch ID authentication was cancelled".localized
       case .authenticationFailed:
-        return "Authentication failed"
+        return "Authentication failed".localized
       case .biometricsNotAvailable:
-        return "Touch ID is not available on this device"
+        return "Touch ID is not available on this device".localized
       case .passwordNotFound:
-        return "No password stored in Keychain"
+        return "No password stored in Keychain".localized
       }
     }
   }

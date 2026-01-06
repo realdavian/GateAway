@@ -33,32 +33,32 @@ enum VPNControllerError: LocalizedError {
   var errorDescription: String? {
     switch self {
     case .notAvailable(let message):
-      return "VPN backend not available: \(message)"
+      return "VPN backend not available: %@".localized(with: message)
     case .connectionFailed(let message):
-      return "Connection failed: \(message)"
+      return "Connection failed: %@".localized(with: message)
     case .disconnectionFailed(let message):
-      return "Disconnection failed: \(message)"
+      return "Disconnection failed: %@".localized(with: message)
     case .configurationInvalid(let message):
-      return "Invalid configuration: \(message)"
+      return "Invalid configuration: %@".localized(with: message)
     case .authenticationRequired:
-      return "Authentication required. Please configure Touch ID or enter your password."
+      return "Authentication required. Please configure Touch ID or enter your password.".localized
     case .permissionDenied:
-      return "Permission denied. Administrator privileges required."
+      return "Permission denied. Administrator privileges required.".localized
     case .timeout:
-      return "Connection timed out. Please try again."
+      return "Connection timed out. Please try again.".localized
     }
   }
 
   var recoverySuggestion: String? {
     switch self {
     case .notAvailable:
-      return "Install the required VPN software using Homebrew."
+      return "Install the required VPN software using Homebrew.".localized
     case .authenticationRequired:
-      return "Enable Touch ID in Settings → Authentication."
+      return "Enable Touch ID in Settings → Authentication.".localized
     case .permissionDenied:
-      return "Grant administrator privileges when prompted."
+      return "Grant administrator privileges when prompted.".localized
     case .timeout:
-      return "Try a different server or check your internet connection."
+      return "Try a different server or check your internet connection.".localized
     default:
       return nil
     }

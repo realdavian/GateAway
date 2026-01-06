@@ -22,15 +22,15 @@ final class PasswordPromptService: PasswordPromptServiceProtocol {
   @MainActor
   func promptForPassword() async -> String? {
     let alert = NSAlert()
-    alert.messageText = "Administrator Password Required"
-    alert.informativeText = "GateAway needs your password to connect to VPN."
+    alert.messageText = "Administrator Password Required".localized
+    alert.informativeText = "GateAway needs your password to connect to VPN.".localized
     alert.alertStyle = .informational
-    alert.addButton(withTitle: "Connect")
-    alert.addButton(withTitle: "Cancel")
+    alert.addButton(withTitle: "Connect".localized)
+    alert.addButton(withTitle: "Cancel".localized)
 
     // Create password field
     let passwordField = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
-    passwordField.placeholderString = "Enter your password"
+    passwordField.placeholderString = "Enter your password".localized
     alert.accessoryView = passwordField
 
     // Make password field first responder

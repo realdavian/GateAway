@@ -17,7 +17,7 @@ struct EmbeddedTerminalView: View {
       HStack {
         Image(systemName: "terminal.fill")
           .foregroundColor(.green)
-        Text("Terminal")
+        Text("Terminal".localized)
           .font(.caption.bold())
 
         Spacer()
@@ -26,7 +26,7 @@ struct EmbeddedTerminalView: View {
           ProgressView()
             .scaleEffect(0.6)
             .frame(width: 16, height: 16)
-          Text("Running...")
+          Text("Running...".localized)
             .font(.caption2)
             .foregroundColor(.secondary)
         } else if let code = exitCode {
@@ -61,19 +61,19 @@ struct EmbeddedTerminalView: View {
       // Action buttons
       HStack {
         if !isRunning && exitCode == nil {
-          Button("Run") {
+          Button("Run".localized) {
             runCommand()
           }
         }
 
         if isRunning {
-          Button("Cancel") {
+          Button("Cancel".localized) {
             cancelCommand()
           }
         }
 
         if exitCode != nil {
-          Button("Close") {
+          Button("Close".localized) {
             onComplete(exitCode == 0)
           }
         }

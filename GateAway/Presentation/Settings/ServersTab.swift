@@ -70,7 +70,7 @@ struct ServersTab: View {
         // Sort picker
         Picker("Sort by".localized, selection: $sortBy) {
           ForEach(SortOption.allCases, id: \.self) { option in
-            Label(option.rawValue, systemImage: option.icon)
+            Label(option.rawValue.localized, systemImage: option.icon)
               .tag(option)
           }
         }
@@ -84,7 +84,7 @@ struct ServersTab: View {
         }
         .buttonStyle(.plain)
         .disabled(serverStore.isLoading)
-        .help("Refresh server list from API")
+        .help("Refresh server list from API".localized)
 
         // Cache indicator
         if let cacheAge = cacheManager.getCacheAge() {
@@ -93,14 +93,14 @@ struct ServersTab: View {
             Image(systemName: "clock.fill")
               .font(.caption2)
               .foregroundColor(.green)
-            Text("\(ageMinutes)m ago")
+            Text("%dm ago".localized(with: ageMinutes))
               .font(.caption2)
               .foregroundColor(.secondary)
           }
         }
 
         // Server count
-        Text("\(filteredServers.count) servers")
+        Text("%d servers".localized(with: filteredServers.count))
           .font(.caption)
           .foregroundColor(.secondary)
 
