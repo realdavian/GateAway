@@ -260,6 +260,7 @@
 // MARK: - Error Messages (ScriptRunnerError)
 "Command failed: %@" = "指令失敗：%@";
 "Authentication required for privileged operation" = "特權操作需要驗證";
+"Authentication cancelled" = "驗證已取消";
 "Invalid password format" = "無效的密碼格式";
 
 // MARK: - Error Messages (OpenVPNError)

@@ -257,6 +257,7 @@
 // MARK: - Error Messages (ScriptRunnerError)
 "Command failed: %@" = "Command failed: %@";
 "Authentication required for privileged operation" = "Authentication required for privileged operation";
+"Authentication cancelled" = "Authentication cancelled";
 "Invalid password format" = "Invalid password format";
 
 // MARK: - Error Messages (OpenVPNError)

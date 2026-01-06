@@ -260,6 +260,7 @@
 // MARK: - Error Messages (ScriptRunnerError)
 "Command failed: %@" = "コマンドが失敗しました: %@";
 "Authentication required for privileged operation" = "特権操作には認証が必要です";
+"Authentication cancelled" = "認証がキャンセルされました";
 "Invalid password format" = "無効なパスワード形式です";
 
 // MARK: - Error Messages (OpenVPNError)

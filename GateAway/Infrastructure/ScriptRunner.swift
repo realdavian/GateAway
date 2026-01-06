@@ -6,6 +6,7 @@ enum ScriptRunnerError: LocalizedError {
   case commandFailed(String)
   case authenticationRequired
   case authenticationFailed
+  case authenticationCancelled
   case invalidPassword
 
   var errorDescription: String? {
@@ -16,6 +17,8 @@ enum ScriptRunnerError: LocalizedError {
       return "Authentication required for privileged operation".localized
     case .authenticationFailed:
       return "Authentication failed".localized
+    case .authenticationCancelled:
+      return "Authentication cancelled".localized
     case .invalidPassword:
       return "Invalid password format".localized
     }
@@ -31,6 +34,11 @@ protocol ScriptRunnerProtocol {
   ///   - privileged: If true, run with sudo using cached or freshly authenticated password
   /// - Returns: Command output as string
   func run(_ command: String, privileged: Bool) async throws -> String
+
+  /// Ensures credentials are available (via cache, biometric, or password prompt)
+  /// Call this before connection to handle cancellation early
+  /// - Throws: `ScriptRunnerError.authenticationCancelled` if user cancels
+  func ensureAuthenticated() async throws
 
   /// Clear cached credentials (call on app quit)
   func clearCredentials()
@@ -93,6 +101,85 @@ final class ScriptRunner: ScriptRunnerProtocol {
     }
     cachedPassword = nil
     Log.debug("ScriptRunner: Credentials cleared")
+  }
+
+  func ensureAuthenticated() async throws {
+    // Already have cached password (already validated)
+    if hasCredentials {
+      Log.debug("ScriptRunner: Credentials already cached and validated")
+      return
+    }
+
+    // Try biometric/Keychain
+    if keychainManager.isPasswordStored() {
+      Log.debug("ScriptRunner: Pre-authenticating via Touch ID/Keychain...")
+      do {
+        let password = try await keychainManager.getPassword()
+        // Keychain passwords are already validated when stored
+        cachePassword(password)
+        Log.success("ScriptRunner: Pre-authentication successful (Keychain)")
+        return
+      } catch KeychainManager.KeychainError.authenticationCancelled {
+        Log.info("ScriptRunner: Biometric pre-auth cancelled")
+        throw ScriptRunnerError.authenticationCancelled
+      } catch {
+        Log.warning("ScriptRunner: Keychain pre-auth failed - \(error.localizedDescription)")
+        // Fall through to password prompt
+      }
+    }
+
+    // Fallback: Password prompt with validation and retry
+    while true {
+      Log.debug("ScriptRunner: Pre-authenticating via password prompt...")
+      guard let password = await passwordPromptService.promptForPassword() else {
+        Log.info("ScriptRunner: Password prompt cancelled")
+        throw ScriptRunnerError.authenticationCancelled
+      }
+
+      // Validate password with sudo -S -v before caching
+      Log.debug("ScriptRunner: Validating password...")
+      let isValid = await validatePassword(password)
+
+      if isValid {
+        cachePassword(password)
+        Log.success("ScriptRunner: Pre-authentication successful (password validated)")
+        return
+      }
+
+      // Show incorrect password alert with retry option
+      Log.warning("ScriptRunner: Password validation failed - incorrect password")
+      let shouldRetry = await passwordPromptService.showIncorrectPasswordAlert()
+
+      if !shouldRetry {
+        Log.info("ScriptRunner: User cancelled after incorrect password")
+        throw ScriptRunnerError.authenticationCancelled
+      }
+      // Loop continues to prompt again
+    }
+  }
+
+  /// Validates password by testing with sudo -S -v
+  private func validatePassword(_ password: String) async -> Bool {
+    await withCheckedContinuation { continuation in
+      let task = Process()
+      task.executableURL = URL(fileURLWithPath: "/bin/bash")
+      task.arguments = ["-c", "echo '\(password)' | sudo -S -v 2>/dev/null"]
+
+      let pipe = Pipe()
+      task.standardOutput = pipe
+      task.standardError = pipe
+
+      task.terminationHandler = { process in
+        continuation.resume(returning: process.terminationStatus == 0)
+      }
+
+      do {
+        try task.run()
+      } catch {
+        Log.error("ScriptRunner: Failed to validate password: \(error)")
+        continuation.resume(returning: false)
+      }
+    }
   }
 
   // MARK: - Private: Direct Execution (Non-Privileged)
@@ -183,9 +270,12 @@ final class ScriptRunner: ScriptRunnerProtocol {
         cachePassword(password)
         Log.debug("ScriptRunner: Credentials cached for session")
         return try await runWithSudo(command, password: password)
+      } catch KeychainManager.KeychainError.authenticationCancelled {
+        Log.info("ScriptRunner: Biometric cancelled by user")
+        throw ScriptRunnerError.authenticationCancelled
       } catch {
         Log.warning("ScriptRunner: Keychain auth failed - \(error.localizedDescription)")
-        // Fall through to AppleScript
+        // Fall through to password prompt for other errors
       }
     }
 
@@ -198,7 +288,7 @@ final class ScriptRunner: ScriptRunnerProtocol {
     // Show native macOS password dialog
     guard let password = await passwordPromptService.promptForPassword() else {
       Log.warning("ScriptRunner: User cancelled password prompt")
-      throw ScriptRunnerError.authenticationFailed
+      throw ScriptRunnerError.authenticationCancelled
     }
 
     // Cache the entered password for the session

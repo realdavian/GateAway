@@ -260,6 +260,7 @@
 // MARK: - Error Messages (ScriptRunnerError)
 "Command failed: %@" = "Arahan gagal: %@";
 "Authentication required for privileged operation" = "Pengesahan diperlukan untuk operasi istimewa";
+"Authentication cancelled" = "Pengesahan dibatalkan";
 "Invalid password format" = "Format kata laluan tidak sah";
 
 // MARK: - Error Messages (OpenVPNError)

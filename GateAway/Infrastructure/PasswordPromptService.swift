@@ -5,6 +5,9 @@ import AppKit
 protocol PasswordPromptServiceProtocol {
   @MainActor
   func promptForPassword() async -> String?
+
+  @MainActor
+  func showIncorrectPasswordAlert() async -> Bool
 }
 
 // MARK: - Password Prompt Service
@@ -44,5 +47,19 @@ final class PasswordPromptService: PasswordPromptServiceProtocol {
     }
 
     return nil
+  }
+
+  /// Shows an "Incorrect Password" alert with Try Again option
+  /// - Returns: true if user wants to try again, false to cancel
+  @MainActor
+  func showIncorrectPasswordAlert() async -> Bool {
+    let alert = NSAlert()
+    alert.messageText = "Incorrect Password".localized
+    alert.informativeText = "The password you entered is incorrect. Please try again.".localized
+    alert.alertStyle = .warning
+    alert.addButton(withTitle: "Try Again".localized)
+    alert.addButton(withTitle: "Cancel".localized)
+
+    return alert.runModal() == .alertFirstButtonReturn
   }
 }

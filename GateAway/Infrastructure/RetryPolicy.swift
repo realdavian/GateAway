@@ -42,6 +42,12 @@ struct RetryPolicy {
       } catch is CancellationError {
         Log.info("Operation cancelled")
         throw CancellationError()
+      } catch ScriptRunnerError.authenticationCancelled {
+        Log.info("Authentication cancelled by user - not retrying")
+        throw ScriptRunnerError.authenticationCancelled
+      } catch KeychainManager.KeychainError.authenticationCancelled {
+        Log.info("Biometric authentication cancelled - not retrying")
+        throw KeychainManager.KeychainError.authenticationCancelled
       } catch {
         lastError = error
 

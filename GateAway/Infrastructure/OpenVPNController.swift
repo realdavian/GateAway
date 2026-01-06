@@ -107,11 +107,14 @@ final class OpenVPNController: VPNControlling {
       throw OpenVPNError.notInstalled
     }
 
-    // 3. Create configuration file
+    // 3. Pre-authenticate (handles cancellation before VPN setup)
+    try await scriptRunner.ensureAuthenticated()
+
+    // 4. Create configuration file
     let configPath = try createConfiguration(for: server)
     currentConfigPath = configPath
 
-    // 4. Start OpenVPN process
+    // 5. Start OpenVPN process
     try await startOpenVPN(configPath: configPath)
 
     Log.debug("Process running, waiting for CONNECTED state...")
@@ -383,9 +386,12 @@ final class OpenVPNController: VPNControlling {
       // Wait for process to initialize
       try await Task.sleep(nanoseconds: 2_000_000_000)
       try await verifyOpenVPNStarted()
+    } catch ScriptRunnerError.authenticationCancelled {
+      Log.info("Authentication cancelled by user")
+      throw ScriptRunnerError.authenticationCancelled
     } catch ScriptRunnerError.authenticationFailed {
-      Log.warning("Authentication failed or cancelled")
-      throw OpenVPNError.connectionFailed("Authentication failed or cancelled")
+      Log.warning("Authentication failed")
+      throw OpenVPNError.connectionFailed("Authentication failed")
     } catch ScriptRunnerError.commandFailed(let msg) {
       Log.error("Command failed: \(msg)")
       throw OpenVPNError.connectionFailed("Failed to start OpenVPN: \(msg)")

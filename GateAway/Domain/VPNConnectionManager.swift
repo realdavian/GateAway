@@ -167,6 +167,22 @@ final class VPNConnectionManager: VPNConnectionManagerProtocol {
         onStateChange?(.disconnected)
       }
       return
+    } catch ScriptRunnerError.authenticationCancelled {
+      Log.info("Authentication cancelled by user")
+      vpnMonitor.forceStop()
+      await MainActor.run {
+        monitoringStore.setDisconnected()
+        onStateChange?(.disconnected)
+      }
+      return
+    } catch KeychainManager.KeychainError.authenticationCancelled {
+      Log.info("Biometric authentication cancelled by user")
+      vpnMonitor.forceStop()
+      await MainActor.run {
+        monitoringStore.setDisconnected()
+        onStateChange?(.disconnected)
+      }
+      return
     } catch {
       Log.error("Connection failed: \(error.localizedDescription)")
       vpnMonitor.forceStop()
