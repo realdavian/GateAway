@@ -304,17 +304,6 @@ final class VPNMonitor: VPNMonitorProtocol {
     )
   }
 
-  /// Enable state notifications from OpenVPN
-  func enableStateNotifications() async {
-    _ = await sendCommand("state on")
-    Log.debug("State notifications enabled")
-  }
-
-  /// Disable state notifications
-  func disableStateNotifications() async {
-    _ = await sendCommand("state off")
-    Log.debug("State notifications disabled")
-  }
 }
 
 // MARK: - Management Socket

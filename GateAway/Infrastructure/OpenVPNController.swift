@@ -103,7 +103,7 @@ final class OpenVPNController: VPNControlling {
     try permissionService.checkOpenVPNPermission()
 
     // 2. Check if OpenVPN is installed
-    guard isInstalled() else {
+    guard isAvailable else {
       throw OpenVPNError.notInstalled
     }
 
@@ -286,26 +286,6 @@ final class OpenVPNController: VPNControlling {
   }
 
   // MARK: - Helpers
-
-  func isInstalled() -> Bool {
-    return fileManager.fileExists(atPath: openVPNBinary)
-  }
-
-  func getConnectionStatus() async -> (isConnected: Bool, vpnIP: String?) {
-    guard let stateOutput = await queryConnectionState() else {
-      return (false, nil)
-    }
-
-    let components = stateOutput.components(separatedBy: ",")
-    if components.count >= 2 {
-      let state = components[1]
-      let isConnected = state == "CONNECTED"
-      let vpnIP = components.count >= 4 ? components[3] : nil
-      return (isConnected, vpnIP)
-    }
-
-    return (false, nil)
-  }
 
   // MARK: - Configuration
 

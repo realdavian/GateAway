@@ -81,24 +81,6 @@ enum OpenVPNState: String, CaseIterable, Equatable {
     }
   }
 
-  // MARK: - Mapping to ConnectionState
-
-  /// Convert to app's ConnectionState enum
-  var toConnectionState: ConnectionState {
-    switch self {
-    case .connecting, .resolve, .tcpConnect, .wait, .auth, .getConfig, .assignIP, .addRoutes:
-      return .connecting
-    case .connected:
-      return .connected
-    case .reconnecting:
-      return .reconnecting
-    case .exiting:
-      return .disconnecting
-    case .unknown:
-      return .disconnected
-    }
-  }
-
   // MARK: - Helpers
 
   /// Is this a connecting/pre-connected state?
@@ -116,13 +98,4 @@ enum OpenVPNState: String, CaseIterable, Equatable {
     self == .connected
   }
 
-  /// Is this a transitional state (may change quickly)?
-  var isTransitional: Bool {
-    switch self {
-    case .connected, .reconnecting, .exiting, .unknown:
-      return false
-    default:
-      return true
-    }
-  }
 }

@@ -20,7 +20,7 @@ enum PermissionError: LocalizedError {
 
 protocol PermissionServiceProtocol {
   func checkOpenVPNPermission() throws
-  func requestPermission()
+
 }
 
 final class PermissionService: PermissionServiceProtocol {
@@ -39,7 +39,4 @@ final class PermissionService: PermissionServiceProtocol {
     }
   }
 
-  func requestPermission() {
-    // No-op - permission is requested when action is performed
-  }
 }
