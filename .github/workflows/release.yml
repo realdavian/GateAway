@@ -88,3 +88,39 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Homebrew Cask
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          VERSION_NUM=${VERSION#v}
+          SHA256=$(shasum -a 256 GateAway.dmg | awk '{print $1}')
+          
+          # Update the cask formula
+          cat > Casks/gateaway.rb << EOF
+          cask "gateaway" do
+            version "${VERSION_NUM}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/realdavian/GateAway/releases/download/v#{version}/GateAway.dmg"
+            name "GateAway"
+            desc "Native macOS menu bar VPN client for VPNGate servers"
+            homepage "https://github.com/realdavian/GateAway"
+
+            depends_on macos: ">= :big_sur"
+
+            app "GateAway.app"
+
+            zap trash: [
+              "~/Library/Application Support/GateAway",
+              "~/Library/Preferences/com.realdavian.GateAway.plist",
+              "~/Library/Caches/com.realdavian.GateAway"
+            ]
+          end
+          EOF
+          
+          # Commit and push the updated cask
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/gateaway.rb
+          git commit -m "chore: update Homebrew cask to ${VERSION}"
+          git push

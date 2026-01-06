@@ -32,15 +32,19 @@ A native and lightweight macOS menu bar application for connecting to <a href="h
 
 ## Getting Started
 
-### 1. Download
-Download the latest `.dmg` from the [Releases](https://github.com/realdavian/GateAway/releases) page.
+### Option 1: Homebrew (Recommended)
+```bash
+brew tap realdavian/gateaway https://github.com/realdavian/GateAway
+brew install --cask gateaway
+```
 
-### 2. Install
-1. Open the DMG and drag the app to **Applications**.
-2. **Right-click** the app → **Open** (required for unsigned apps).
-3. Click **Open** again in the warning dialog.
+### Option 2: Manual Download
+1. Download the latest `.dmg` from the [Releases](https://github.com/realdavian/GateAway/releases) page.
+2. Open the DMG and drag the app to **Applications**.
+3. **Right-click** the app → **Open** (required for unsigned apps).
+4. Click **Open** again in the warning dialog.
 
-### 3. Build from Source (Optional)
+### Option 3: Build from Source
 ```bash
 git clone https://github.com/realdavian/GateAway.git
 cd GateAway
