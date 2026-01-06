@@ -54,6 +54,27 @@ open GateAway.xcodeproj
 
 ---
 
+## First Launch: Bypassing macOS Gatekeeper
+
+Since GateAway is not signed with an Apple Developer certificate, macOS will block it on first run.
+
+### If you see "App can't be opened because it is from an unidentified developer":
+
+1. Open **System Settings** → **Privacy & Security**
+2. Scroll down to the Security section
+3. You'll see a message about GateAway being blocked — click **"Open Anyway"**
+4. Enter your password when prompted
+5. The app will now launch normally
+
+### Alternative method (Right-click):
+1. **Right-click** (or Control-click) on GateAway.app
+2. Select **"Open"** from the context menu
+3. Click **"Open"** in the warning dialog
+
+> **Note:** You only need to do this once. After the first launch, macOS will remember your choice.
+
+---
+
 ## Usage
 
 ### Connecting
