@@ -96,7 +96,7 @@ jobs:
           SHA256=$(shasum -a 256 GateAway.dmg | awk '{print $1}')
           
           # Update the cask formula
-          cat > Casks/gateaway.rb << EOF
+          cat > Casks/gateaway.rb <<EOF
           cask "gateaway" do
             version "${VERSION_NUM}"
             sha256 "${SHA256}"
@@ -118,9 +118,11 @@ jobs:
           end
           EOF
           
-          # Commit and push the updated cask
+          # Commit and push the updated cask using PAT for branch protection bypass
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/realdavian/GateAway.git
           git add Casks/gateaway.rb
           git commit -m "chore: update Homebrew cask to ${VERSION}"
           git push
+
