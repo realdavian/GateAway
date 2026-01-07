@@ -1,6 +1,6 @@
 cask "gateaway" do
-  version "0.0.1"
-  sha256 "09c5366fd1c801c69af5a14ba44acde342f23303a6744bf28f1405b90c0fc93a"
+  version "1.0.0"
+  sha256 "455398a9225766d90314deba199f9f2e1caa481c3ee1e0d2098df4283625ca3c"
 
   url "https://github.com/realdavian/GateAway/releases/download/v#{version}/GateAway.dmg"
   name "GateAway"
