@@ -90,10 +90,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update Homebrew Cask
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           VERSION=${{ steps.version.outputs.version }}
           VERSION_NUM=${VERSION#v}
           SHA256=$(shasum -a 256 GateAway.dmg | awk '{print $1}')
+          BRANCH_NAME="chore/update-cask-${VERSION_NUM}"
           
           # Update the cask formula
           cat > Casks/gateaway.rb <<EOF
@@ -118,11 +121,18 @@ jobs:
           end
           EOF
           
-          # Commit and push the updated cask using PAT for branch protection bypass
+          # Create branch, commit, push, and create PR
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.PAT_TOKEN }}@github.com/realdavian/GateAway.git
+          git checkout -b "${BRANCH_NAME}"
           git add Casks/gateaway.rb
           git commit -m "chore: update Homebrew cask to ${VERSION}"
-          git push
-
+          git push -u origin "${BRANCH_NAME}"
+          
+          # Create PR using GitHub CLI
+          gh pr create \
+            --title "chore: update Homebrew cask to ${VERSION}" \
+            --body "Auto-generated PR to update Homebrew cask formula for release ${VERSION}." \
+            --base main \
+            --head "${BRANCH_NAME}"
